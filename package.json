@@ -1,0 +1,17 @@
+{
+  "name": "rootbound",
+  "version": "0.1.0",
+  "description": "Rootbound – An ancient tree ecosystem idle builder",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "phaser": "^3.87.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0"
+  }
+}
