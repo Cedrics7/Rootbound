@@ -5,10 +5,15 @@ import { TreeSystem } from '../systems/TreeSystem.js';
 import { MutationSystem } from '../systems/MutationSystem.js';
 import { UISystem } from '../systems/UISystem.js';
 import { CodexSystem } from '../systems/CodexSystem.js';
+import { SaveSystem } from '../systems/SaveSystem.js';
 
 export class GameScene extends Phaser.Scene {
   constructor() {
     super({ key: 'GameScene' });
+  }
+
+  init(data) {
+    this._loadSave = data?.loadSave ?? false;
   }
 
   create() {
@@ -18,6 +23,12 @@ export class GameScene extends Phaser.Scene {
     this.tree      = new TreeSystem(this);
     this.mutations = new MutationSystem();
     this.codex     = new CodexSystem();
+
+    // Spielstand laden wenn vorhanden
+    if (this._loadSave) {
+      const data = SaveSystem.load();
+      if (data) SaveSystem.restore(data, this.resources, this.mutations, this.seasons, this.codex, this.tree);
+    }
 
     // Hintergrund-Layer
     this.bgGfx     = this.add.graphics().setDepth(0);
@@ -39,6 +50,12 @@ export class GameScene extends Phaser.Scene {
       this.ui.showEventBanner(ev);
       this.ui.addEventLog(ev.emoji + ' ' + ev.name + ' – ' + ev.description, 'event');
       this.mutations.onCrisis(ev.id);
+      // fire_bark nach Krise sichtbar freischalten
+      if (ev.id === 'drought') {
+        const fb = this.mutations.getAll().find(m => m.id === 'fire_bark');
+        if (fb) fb.unlocked = true;
+        if (this.ui.panelOpen) this.ui._renderPanel();
+      }
       const discovered = this.codex.onCrisis(ev.id);
       if (discovered) {
         const entry = this.codex.getAll().find(e => e.id === discovered);
@@ -58,7 +75,7 @@ export class GameScene extends Phaser.Scene {
     this._drawBackground(this.seasons.current);
     this.tree.draw(this.seasons.current.id, this.mutations.getAll());
 
-    // Resize: alles neu zeichnen
+    // Resize
     this.scale.on('resize', () => {
       this._drawBackground(this.seasons.current);
       this.tree.draw(this.seasons.current.id, this.mutations.getAll());
@@ -72,6 +89,10 @@ export class GameScene extends Phaser.Scene {
         const bonuses     = this.mutations.getBonuses();
         const eventEffect = this.seasons.getEventEffect();
         this.resources.tick(this.seasons.current.id, this.tree.phaseIndex, bonuses, eventEffect);
+
+        // Symbiose passiv erhöhen durch aktive Symbiose-Mutationen
+        const symCount = this.mutations.getActiveSymbioses();
+        if (symCount > 0) this.resources.add({ symbiosis: symCount * 0.3 });
 
         // Codex-Freischaltungen prüfen
         const hadNew = this.codex.check(
@@ -87,7 +108,7 @@ export class GameScene extends Phaser.Scene {
           }
         }
 
-        // Baum-Wachstum prüfen
+        // Baum-Wachstum
         const grown = this.tree.checkGrowth(this.resources, this.mutations.getActiveSymbioses());
         if (grown) {
           this.ui.showClickFeedback(
@@ -97,22 +118,34 @@ export class GameScene extends Phaser.Scene {
           this.ui.addEventLog('🌳 ' + this.tree.phase.name + ' – ' + this.tree.phase.description, 'growth');
           if (this.ui.panelOpen) this.ui._renderPanel();
         }
+
+        // Game-Over prüfen
+        this._checkGameOver();
+
         this.ui.update();
       },
     });
 
     // Jahreszeit-Fortschrittsbalken (100 ms)
     this.time.addEvent({
-      delay: 100,
-      loop: true,
+      delay: 100, loop: true,
       callback: () => this.ui.updateSeasonBar(),
     });
 
-    // Klick auf Baum: Licht-Boost
+    // Autosave alle 30 s
+    this.time.addEvent({
+      delay: 30_000, loop: true,
+      callback: () => {
+        const ok = SaveSystem.save(this.resources, this.mutations, this.seasons, this.codex, this.tree);
+        if (ok) this.ui.addEventLog('💾 Spielstand gespeichert.', 'info');
+      },
+    });
+
+    // Klick auf Baum
     this.input.on('pointerdown', (ptr) => {
       const W = this.scale.width;
       const H = this.scale.height;
-      if (this.ui.panelOpen && ptr.x < 330 && ptr.y > 100) return;
+      if (this.ui.panelOpen && ptr.x < 340 && ptr.y > 100) return;
       if (this.ui.codexOpen) return;
       const cx = W / 2;
       const treeCenterY = H * 0.78 - this.tree.phase.trunkHeight * 0.5;
@@ -125,35 +158,77 @@ export class GameScene extends Phaser.Scene {
 
     // Partikel-Spawner
     this.time.addEvent({
-      delay: 700,
-      loop: true,
+      delay: 700, loop: true,
       callback: () => this._spawnParticle(),
     });
 
-    // Einführungs-Log
-    this.time.delayedCall(500, () => {
-      this.ui.addEventLog('🌳 Du erwachst. Uralt. Verwurzelt. Das Ökosystem beginnt.', 'discovery');
-    });
-    this.time.delayedCall(2500, () => {
-      this.ui.addEventLog('🌱 Klicke auf deinen Baum für +15 Licht. Öffne Mutationen um zu wachsen.', 'info');
-    });
+    // Intro-Logs
+    if (!this._loadSave) {
+      this.time.delayedCall(500,  () => this.ui.addEventLog('🌳 Du erwachst. Uralt. Verwurzelt. Das Ökosystem beginnt.', 'discovery'));
+      this.time.delayedCall(2500, () => this.ui.addEventLog('🌱 Klicke auf deinen Baum für +15 Licht. Öffne Mutationen um zu wachsen.', 'info'));
+    } else {
+      this.time.delayedCall(500, () => this.ui.addEventLog('💾 Spielstand geladen. Willkommen zurück.', 'discovery'));
+    }
   }
 
   update(time, delta) {
     this.seasons.update(delta);
-    this.tree.tick(delta);        // Wind-Animation jeden Frame
+    this.tree.tick(delta);
     this._updateParticles(delta);
     this._updateStars();
   }
 
-  // ── Hintergrund ───────────────────────────────────────────────────
+  // ── Game Over ───────────────────────────────────────────────
+
+  _checkGameOver() {
+    // Game Over wenn alle Ressourcen gleichzeitig 0 sind
+    const allEmpty = ['light', 'water', 'nutrients'].every(
+      k => this.resources.get(k) <= 0
+    );
+    if (allEmpty && !this._gameOverShown) {
+      this._gameOverShown = true;
+      this._showGameOver();
+    }
+  }
+
+  _showGameOver() {
+    const W = this.scene.scene.scale.width  || this.scale.width;
+    const H = this.scale.height;
+    // Verdunkeln
+    const overlay = this.add.rectangle(this.scale.width / 2, H / 2, this.scale.width, H, 0x000000, 0).setDepth(50);
+    this.tweens.add({ targets: overlay, alpha: 0.75, duration: 1500 });
+
+    this.time.delayedCall(800, () => {
+      this.add.text(this.scale.width / 2, H * 0.35, '🍂', { fontSize: '64px' }).setOrigin(0.5).setDepth(51);
+      this.add.text(this.scale.width / 2, H * 0.50, 'Der Baum ist gestorben.', {
+        fontFamily: '"Cormorant Garamond", Georgia, serif',
+        fontSize: '32px', fill: '#c87040', stroke: '#000', strokeThickness: 3,
+      }).setOrigin(0.5).setDepth(51);
+      this.add.text(this.scale.width / 2, H * 0.60, 'Jahr ' + this.seasons.year + ' – ' + this.tree.phase.name, {
+        fontFamily: 'sans-serif', fontSize: '15px', fill: '#806050',
+      }).setOrigin(0.5).setDepth(51);
+
+      // Neu starten
+      const btn = this.add.rectangle(this.scale.width / 2, H * 0.72, 220, 42, 0x2a1a0a, 0.95)
+        .setInteractive({ cursor: 'pointer' }).setDepth(51).setStrokeStyle(1, 0x6a3a1a);
+      this.add.text(this.scale.width / 2, H * 0.72, '🌱 Neu starten', {
+        fontFamily: 'sans-serif', fontSize: '15px', fill: '#d09060',
+      }).setOrigin(0.5).setDepth(52);
+      btn.on('pointerdown', () => {
+        SaveSystem.deleteSave();
+        this.scene.restart({ loadSave: false });
+        this._gameOverShown = false;
+      });
+    });
+  }
+
+  // ── Hintergrund ──────────────────────────────────────────────
 
   _drawBackground(season) {
     const W = this.scale.width;
     const H = this.scale.height;
     const g = this.bgGfx;
     g.clear();
-
     const topColor = Phaser.Display.Color.HexStringToColor(season.skyTop);
     const botColor = Phaser.Display.Color.HexStringToColor(season.skyBottom);
     const steps = 14;
@@ -165,26 +240,22 @@ export class GameScene extends Phaser.Scene {
       g.fillStyle(Phaser.Display.Color.GetColor(r, gg, b), 1);
       g.fillRect(0, (H * i) / steps, W, H / steps + 1);
     }
-
     this.groundGfx.clear();
     const gc = Phaser.Display.Color.HexStringToColor(season.groundColor);
     this.groundGfx.fillStyle(Phaser.Display.Color.GetColor(gc.red, gc.green, gc.blue), 1);
     this.groundGfx.fillRect(0, H * 0.78, W, H * 0.22);
     this.groundGfx.fillStyle(Phaser.Display.Color.GetColor(
-      Math.min(255, gc.red   + 18),
-      Math.min(255, gc.green + 18),
-      Math.min(255, gc.blue  + 8)
+      Math.min(255, gc.red + 18), Math.min(255, gc.green + 18), Math.min(255, gc.blue + 8)
     ), 1);
     this.groundGfx.fillEllipse(W / 2, H * 0.78, W * 1.5, 80);
   }
 
-  // ── Sterne ────────────────────────────────────────────────────────
+  // ── Sterne ───────────────────────────────────────────────────
 
   _buildStars() {
     this._stars = Array.from({ length: 90 }, () => ({
-      x:     Math.random(),
-      y:     Math.random() * 0.65,
-      r:     0.5 + Math.random() * 1.2,
+      x: Math.random(), y: Math.random() * 0.65,
+      r: 0.5 + Math.random() * 1.2,
       phase: Math.random() * Math.PI * 2,
       speed: 0.5 + Math.random() * 1.5,
     }));
@@ -196,7 +267,6 @@ export class GameScene extends Phaser.Scene {
     const sid = this.seasons.current.id;
     const alpha = sid === 'winter' ? 0.7 : sid === 'autumn' ? 0.4 : 0.15;
     if (alpha < 0.05) { this.starsGfx.clear(); return; }
-
     this.starsGfx.clear();
     const t = this.time.now / 1000;
     for (const s of this._stars) {
@@ -204,35 +274,35 @@ export class GameScene extends Phaser.Scene {
       this.starsGfx.fillStyle(0xffffff, a);
       this.starsGfx.fillCircle(s.x * W, s.y * H, s.r);
     }
-    const moonX = W * 0.83;
-    const moonY = H * 0.1;
+    const moonX = W * 0.83, moonY = H * 0.1;
     this.starsGfx.fillStyle(0xd8dff0, alpha * 0.9);
     this.starsGfx.fillCircle(moonX, moonY, 13);
     this.starsGfx.fillStyle(0xe8f0ff, 0.15 * alpha);
     this.starsGfx.fillCircle(moonX, moonY, 28);
   }
 
-  // ── Saison-Wechsel ───────────────────────────────────────────────
+  // ── Saison-Wechsel ───────────────────────────────────────────
 
   _onSeasonChange(prev, next) {
     this._drawBackground(next);
     this.tree.draw(next.id, this.mutations.getAll());
-    this.ui.showSeasonTransition(next);
-    this.ui.addEventLog(next.emoji + ' ' + next.name + ': ' + next.description, 'season');
+    if (this.ui) {
+      this.ui.showSeasonTransition(next);
+      this.ui.addEventLog(next.emoji + ' ' + next.name + ': ' + next.description, 'season');
+    }
   }
 
-  // ── Partikel ─────────────────────────────────────────────────────────
+  // ── Partikel ─────────────────────────────────────────────────
 
   _spawnParticle() {
     const season = this.seasons.current.id;
-    const W = this.scale.width;
+    const W      = this.scale.width;
     const colors = { spring: 0xffb8c8, summer: 0x80ff40, autumn: 0xe06010, winter: 0xe8f0ff };
     this.particleList.push({
-      x:     Math.random() * W,
-      y:     -10,
-      vy:    0.4 + Math.random() * 0.8,
-      vx:    (Math.random() - 0.5) * 0.7,
-      size:  1.5 + Math.random() * 3,
+      x: Math.random() * W, y: -10,
+      vy: 0.4 + Math.random() * 0.8,
+      vx: (Math.random() - 0.5) * 0.7,
+      size: 1.5 + Math.random() * 3,
       alpha: 0.5 + Math.random() * 0.4,
       color: colors[season] || 0xffffff,
     });
