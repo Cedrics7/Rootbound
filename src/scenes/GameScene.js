@@ -11,8 +11,6 @@ export class GameScene extends Phaser.Scene {
   }
 
   create() {
-    const W = this.scale.width;
-
     // Systeme
     this.resources = new ResourceSystem();
     this.seasons   = new SeasonSystem(this._onSeasonChange.bind(this));
@@ -23,7 +21,9 @@ export class GameScene extends Phaser.Scene {
     this.seasons.onEventStart = (ev) => {
       this.ui.showEventBanner(ev);
       this.mutations.onCrisis(ev.id);
-      const flash = this.add.rectangle(512, 384, 1024, 768, ev.color || 0xffffff, 0.12).setDepth(10);
+      const W = this.scale.width;
+      const H = this.scale.height;
+      const flash = this.add.rectangle(W / 2, H / 2, W, H, ev.color || 0xffffff, 0.12).setDepth(10);
       this.tweens.add({ targets: flash, alpha: 0, duration: 1200, onComplete: () => flash.destroy() });
     };
     this.seasons.onEventEnd = () => this.ui.showEventBanner(null);
@@ -32,16 +32,22 @@ export class GameScene extends Phaser.Scene {
     this.bgGfx     = this.add.graphics();
     this.groundGfx = this.add.graphics();
 
-    // Partikel-Layer
+    // Partikel-Layer (above ground, below tree)
     this.particles    = this.add.graphics();
     this.particleList = [];
 
-    // UI (nach allen Systemen, weil es auf sie zeigt)
+    // UI (nach allen Systemen)
     this.ui = new UISystem(this, this.resources, this.seasons, this.tree, this.mutations);
 
     // Initiales Zeichnen
     this._drawBackground(this.seasons.current);
     this.tree.draw(this.seasons.current.id, this.mutations.getAll());
+
+    // Resize: redraw background + tree so nothing lands off-screen
+    this.scale.on('resize', () => {
+      this._drawBackground(this.seasons.current);
+      this.tree.draw(this.seasons.current.id, this.mutations.getAll());
+    });
 
     // Ressourcen-Tick (1 s)
     this.time.addEvent({
@@ -54,7 +60,7 @@ export class GameScene extends Phaser.Scene {
 
         const grown = this.tree.checkGrowth(this.resources, this.mutations.getActiveSymbioses());
         if (grown) {
-          this.ui.showClickFeedback(512, 400, '\uD83C\uDF31 Baum w\u00E4chst!', '#a0d878');
+          this.ui.showClickFeedback(this.scale.width / 2, this.scale.height * 0.4, '🌱 Baum wächst!', '#a0d878');
           if (this.ui.panelOpen) this.ui._renderPanel();
         }
         this.ui.update();
@@ -70,14 +76,18 @@ export class GameScene extends Phaser.Scene {
 
     // Klick auf Baum: Licht-Boost
     this.input.on('pointerdown', (ptr) => {
-      if (ptr.x < 330 && ptr.y > 100 && ptr.y < 600 && this.ui.panelOpen) return;
+      const W = this.scale.width;
+      const H = this.scale.height;
 
-      const cx = W / 2;
-      const treeCenterY = 600 - this.tree.phase.trunkHeight / 2;
+      // Ignore clicks inside the UI panel area
+      if (ptr.x < 330 && ptr.y > 100 && ptr.y < H - 100 && this.ui.panelOpen) return;
+
+      const cx        = W / 2;
+      const treeCenterY = H * 0.78 - this.tree.phase.trunkHeight / 2;
       const dist = Phaser.Math.Distance.Between(ptr.x, ptr.y, cx, treeCenterY);
-      if (dist < 120) {
-        this.resources.add({ light: 15 }); // sauberer als spend() mit negativem Wert
-        this.ui.showClickFeedback(ptr.x, ptr.y, '+15 \u2600\uFE0F');
+      if (dist < 140) {
+        this.resources.add({ light: 15 });
+        this.ui.showClickFeedback(ptr.x, ptr.y, '+15 ☀️');
       }
     });
 
@@ -102,9 +112,9 @@ export class GameScene extends Phaser.Scene {
 
     const topColor = Phaser.Display.Color.HexStringToColor(season.skyTop);
     const botColor = Phaser.Display.Color.HexStringToColor(season.skyBottom);
-    const steps = 12;
+    const steps = 14;
     for (let i = 0; i < steps; i++) {
-      const t = i / steps;
+      const t  = i / steps;
       const r  = Math.round(topColor.red   + t * (botColor.red   - topColor.red));
       const gg = Math.round(topColor.green + t * (botColor.green - topColor.green));
       const b  = Math.round(topColor.blue  + t * (botColor.blue  - topColor.blue));
@@ -112,16 +122,17 @@ export class GameScene extends Phaser.Scene {
       g.fillRect(0, (H * i) / steps, W, H / steps + 1);
     }
 
+    // Ground
     this.groundGfx.clear();
     const gc = Phaser.Display.Color.HexStringToColor(season.groundColor);
     this.groundGfx.fillStyle(Phaser.Display.Color.GetColor(gc.red, gc.green, gc.blue), 1);
-    this.groundGfx.fillRect(0, 600, W, H - 600);
+    this.groundGfx.fillRect(0, H * 0.78, W, H * 0.22);
     this.groundGfx.fillStyle(Phaser.Display.Color.GetColor(
       Math.min(255, gc.red   + 20),
       Math.min(255, gc.green + 20),
       Math.min(255, gc.blue  + 10)
     ), 1);
-    this.groundGfx.fillEllipse(W / 2, 600, W * 1.4, 80);
+    this.groundGfx.fillEllipse(W / 2, H * 0.78, W * 1.4, 80);
   }
 
   _onSeasonChange(prev, next) {
@@ -135,10 +146,10 @@ export class GameScene extends Phaser.Scene {
     const W = this.scale.width;
     const colors = { spring: 0xffb8c8, summer: 0x80ff40, autumn: 0xe06010, winter: 0xe8f0ff };
     this.particleList.push({
-      x: Math.random() * W,
-      y: -10,
-      vy: 0.5 + Math.random() * 1.0,
-      vx: (Math.random() - 0.5) * 0.8,
+      x:    Math.random() * W,
+      y:    -10,
+      vy:   0.5 + Math.random() * 1.0,
+      vx:   (Math.random() - 0.5) * 0.8,
       size: 2 + Math.random() * 4,
       alpha: 0.6 + Math.random() * 0.4,
       color: colors[season] || 0xffffff,
