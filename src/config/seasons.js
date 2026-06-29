@@ -1,7 +1,7 @@
 // Jahreszeiten-Konfiguration
 // Alle Werte zentral änderbar – kein Magic-Number-Problem
 
-export const SEASON_DURATION_MS = 60_000; // 60 Sekunden pro Jahreszeit (anpassbar)
+export const SEASON_DURATION_MS = 60_000; // 60 Sekunden pro Jahreszeit
 
 export const SEASONS = [
   {
@@ -12,17 +12,15 @@ export const SEASONS = [
     skyBottom: '#2d5a27',
     groundColor: '#3d6b2a',
     ambientLight: '#a8d878',
-    // Ressourcen-Raten-Multiplikatoren
-    resourceMultiplier: { light: 1.2, water: 1.4, nutrients: 1.0 },
-    // Saisonale Ereignisse: name, Wahrscheinlichkeit pro Tick, Effekte
+    resourceMultiplier: { light: 1.2, water: 1.4, nutrients: 1.0, symbiosis: 1.3 },
     events: [
       {
         id: 'bloom',
         name: 'Blütenpracht',
         emoji: '🌸',
-        chance: 0.004, // ~0.4% pro Sekunde
+        chance: 0.004,
         duration: 8000,
-        effect: { light: +1.5, water: -0.3, nutrients: +0.5 },
+        effect: { light: +1.5, water: -0.3, nutrients: +0.5, symbiosis: +0.8 },
         description: 'Eine Blütenpracht verstärkt die Photosynthese!',
         color: 0xffb8d0,
       },
@@ -37,7 +35,7 @@ export const SEASONS = [
     skyBottom: '#1e4a10',
     groundColor: '#4a7a1e',
     ambientLight: '#f0e060',
-    resourceMultiplier: { light: 1.5, water: 0.7, nutrients: 1.2 },
+    resourceMultiplier: { light: 1.5, water: 0.7, nutrients: 1.2, symbiosis: 1.6 },
     events: [
       {
         id: 'drought',
@@ -45,7 +43,7 @@ export const SEASONS = [
         emoji: '🔥',
         chance: 0.006,
         duration: 10000,
-        effect: { light: +0.5, water: -1.8, nutrients: -0.5 },
+        effect: { light: +0.5, water: -1.8, nutrients: -0.5, symbiosis: -0.3 },
         description: 'Extreme Hitze! Wasser verdunstet rapide.',
         color: 0xff6020,
       },
@@ -55,7 +53,7 @@ export const SEASONS = [
         emoji: '🌡️',
         chance: 0.003,
         duration: 6000,
-        effect: { light: +0.3, water: -1.2, nutrients: 0 },
+        effect: { light: +0.3, water: -1.2, nutrients: 0, symbiosis: 0 },
         description: 'Sengend heiß – Wasser ist knapp.',
         color: 0xffa040,
       },
@@ -70,7 +68,7 @@ export const SEASONS = [
     skyBottom: '#3d2a10',
     groundColor: '#5a3a0a',
     ambientLight: '#e08030',
-    resourceMultiplier: { light: 0.9, water: 1.1, nutrients: 1.5 },
+    resourceMultiplier: { light: 0.9, water: 1.1, nutrients: 1.5, symbiosis: 0.9 },
     events: [
       {
         id: 'windstorm',
@@ -78,8 +76,8 @@ export const SEASONS = [
         emoji: '🌪️',
         chance: 0.005,
         duration: 7000,
-        effect: { light: -0.8, water: +1.0, nutrients: -0.6 },
-        description: 'Ein Sturm fegt über das Land – Ressourcen schwinden!',
+        effect: { light: -0.8, water: +1.0, nutrients: -0.6, symbiosis: -0.5 },
+        description: 'Ein Sturm fegt über das Land!',
         color: 0xd07020,
       },
       {
@@ -88,7 +86,7 @@ export const SEASONS = [
         emoji: '🍄',
         chance: 0.004,
         duration: 6000,
-        effect: { light: 0, water: 0, nutrients: +2.5 },
+        effect: { light: 0, water: 0, nutrients: +2.5, symbiosis: +1.0 },
         description: 'Gefallene Blätter nähren den Boden.',
         color: 0x90c040,
       },
@@ -103,7 +101,7 @@ export const SEASONS = [
     skyBottom: '#0a1a2e',
     groundColor: '#c8d8e8',
     ambientLight: '#6090c0',
-    resourceMultiplier: { light: 0.5, water: 0.6, nutrients: 0.4 },
+    resourceMultiplier: { light: 0.5, water: 0.6, nutrients: 0.4, symbiosis: 0.3 },
     events: [
       {
         id: 'blizzard',
@@ -111,8 +109,8 @@ export const SEASONS = [
         emoji: '❄️',
         chance: 0.005,
         duration: 12000,
-        effect: { light: -1.0, water: -0.8, nutrients: -1.0 },
-        description: 'Ein Blizzard zieht auf! Alle Ressourcen sinken schnell.',
+        effect: { light: -1.0, water: -0.8, nutrients: -1.0, symbiosis: -0.8 },
+        description: 'Ein Blizzard zieht auf! Alle Ressourcen sinken.',
         color: 0xa0c8f0,
       },
       {
@@ -121,7 +119,7 @@ export const SEASONS = [
         emoji: '🧊',
         chance: 0.007,
         duration: 8000,
-        effect: { light: -0.5, water: -0.5, nutrients: -0.8 },
+        effect: { light: -0.5, water: -0.5, nutrients: -0.8, symbiosis: -0.4 },
         description: 'Tiefer Frost – Nährstoffe gefrieren im Boden.',
         color: 0x80a8ff,
       },
@@ -138,8 +136,7 @@ export const TREE_PHASES = [
     trunkWidth: 8,
     levels: 2,
     branchSpread: 40,
-    // Wachstumsbedingungen (werden aus Ressourcen bezahlt)
-    growthCost: null, // Startphase
+    growthCost: null,
     requiredSymbioses: 0,
     leafColor: 0x4a9a3a,
     description: 'Ein kleines Bäumchen. Voller Potenzial.',
@@ -151,7 +148,6 @@ export const TREE_PHASES = [
     trunkWidth: 14,
     levels: 3,
     branchSpread: 70,
-    // Kosten für Wachstum in diese Phase
     growthCost: { light: 80, water: 40, nutrients: 20 },
     requiredSymbioses: 0,
     leafColor: 0x3a8a2a,
@@ -165,9 +161,21 @@ export const TREE_PHASES = [
     levels: 4,
     branchSpread: 110,
     growthCost: { light: 200, water: 100, nutrients: 80 },
-    requiredSymbioses: 2, // braucht 2 aktive Symbiosen (Mutationen)
+    requiredSymbioses: 2,
     leafColor: 0x2a7a1a,
     description: 'Breite Krone. Das Netzwerk beginnt.',
+  },
+  {
+    id: 'ancient',
+    name: 'Urbaum',
+    trunkHeight: 300,
+    trunkWidth: 34,
+    levels: 5,
+    branchSpread: 160,
+    growthCost: { light: 400, water: 250, nutrients: 200 },
+    requiredSymbioses: 4,
+    leafColor: 0x1a6010,
+    description: 'Ein Jahrtausende alter Riese. Das Ökosystem zentriert sich um dich.',
   },
 ];
 
@@ -177,7 +185,7 @@ export const RESOURCES = {
     emoji: '☀️',
     color: '#f0e060',
     max: 500,
-    baseRate: 0.8, // pro Sekunde
+    baseRate: 0.8,
   },
   water: {
     name: 'Wasser',
@@ -193,22 +201,28 @@ export const RESOURCES = {
     max: 500,
     baseRate: 0.3,
   },
+  symbiosis: {
+    name: 'Symbiose',
+    emoji: '🌿',
+    color: '#40d0a0',
+    max: 300,
+    baseRate: 0.15,
+  },
 };
 
-// Mutations-Definitionen (GDD §3.3)
 export const MUTATIONS = [
   {
     id: 'deep_roots',
     name: 'Tiefe Wurzeln',
     emoji: '🌿',
     type: 'passive',
-    description: 'Der Baum gräbt tiefere Wurzeln. Wasser-Regeneration +40% dauerhaft.',
+    description: 'Tiefere Wurzeln. Wasser-Regeneration +40% dauerhaft. Sichtbar als extra Wurzeln.',
     lore: 'Unter der Erde träumt der Baum von Meeren, die längst verschwunden sind.',
     cost: { light: 60, water: 20, nutrients: 30 },
     requiredPhase: 0,
     exclusiveWith: [],
     effect: { waterRateBonus: 0.4 },
-    visual: { trunkColorTint: 0x2a1a0a, rootExtra: 2 },
+    visual: { trunkColorTint: 0x2a1a0a, rootExtra: 3 },
     unlocked: false,
     active: false,
   },
@@ -217,7 +231,7 @@ export const MUTATIONS = [
     name: 'Biolumineszenz',
     emoji: '✨',
     type: 'active',
-    description: 'Leuchtende Blätter locken Nachtinsekten an. Nährstoffe +50%, aber Wasser -20%.',
+    description: 'Leuchtende Blätter locken Nachtinsekten. Nährstoffe +50%, Wasser -20%. Blätter leuchten grün.',
     lore: 'In der Nacht leuchtet der Wald wie ein lebendiger Sternenhimmel.',
     cost: { light: 120, water: 50, nutrients: 40 },
     requiredPhase: 1,
@@ -229,10 +243,10 @@ export const MUTATIONS = [
   },
   {
     id: 'mycel_bridge',
-    name: 'Myzelbücke',
+    name: 'Myzelbrücke',
     emoji: '🍄',
     type: 'symbiosis',
-    description: 'Pilznetzwerk im Boden verbindet alle Ressourcen. Alle Raten +20%.',
+    description: 'Pilznetzwerk verbindet alle Ressourcen. Alle Raten +20%. Myzel sichtbar im Boden.',
     lore: 'Unter jedem Wald schlägt ein zweites Herz aus Pilzfäden.',
     cost: { light: 80, water: 80, nutrients: 100 },
     requiredPhase: 1,
@@ -247,9 +261,9 @@ export const MUTATIONS = [
     name: 'Feuerfeste Rinde',
     emoji: '🔥',
     type: 'crisis',
-    description: 'Nach dem Überstehen einer Dürre wächst feuerfeste Rinde. Wasser-Verlust -30%.',
+    description: 'Nach einer Dürre wächst feuerfeste Rinde. Wasser-Verlust -30%. Stamm wird rötlich.',
     lore: 'Was das Feuer nicht bricht, macht es unsterblich.',
-    cost: { light: 0, water: 0, nutrients: 0 }, // wird durch Krise freigeschaltet
+    cost: { light: 0, water: 0, nutrients: 0 },
     requiredPhase: 1,
     requiredCrisis: 'drought',
     exclusiveWith: ['bioluminescence'],
@@ -263,7 +277,7 @@ export const MUTATIONS = [
     name: 'Sonnen-Krone',
     emoji: '🌞',
     type: 'active',
-    description: 'Die Krone richtet sich zur Sonne aus. Licht +60%, aber langsames Wachstum.',
+    description: 'Krone richtet sich zur Sonne. Licht +60%. Blätter werden golden.',
     lore: 'Manche Bäume verbiegen ihr ganzes Leben, um dem Licht zu folgen.',
     cost: { light: 150, water: 30, nutrients: 60 },
     requiredPhase: 1,
