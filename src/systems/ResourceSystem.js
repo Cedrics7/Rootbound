@@ -5,18 +5,46 @@ import { RESOURCES } from '../config/seasons.js';
  */
 export class ResourceSystem {
   constructor() {
+<<<<<<< HEAD
+=======
     // Deep-Copy der Ressourcen-Definitionen mit aktuellem Wert
+>>>>>>> origin/main
     this._res = {};
     for (const [key, def] of Object.entries(RESOURCES)) {
       this._res[key] = {
         ...def,
+<<<<<<< HEAD
+        value: def.max * 0.3,
+=======
         value: def.max * 0.3, // Startwert: 30%
+>>>>>>> origin/main
       };
     }
   }
 
   /**
    * Wird jede Sekunde aufgerufen.
+<<<<<<< HEAD
+   */
+  tick(seasonId, phaseIndex, bonuses, eventEffect) {
+    const season = SEASONS.find(s => s.id === seasonId);
+    const mult   = season ? season.resourceMultiplier : { light: 1, water: 1, nutrients: 1, symbiosis: 1 };
+    const phaseBonus = 1 + phaseIndex * 0.15;
+
+    for (const [key, res] of Object.entries(this._res)) {
+      let rate = res.baseRate * (mult[key] ?? 1) * phaseBonus;
+
+      if (key === 'light')     rate *= (1 + (bonuses.lightRateBonus     ?? 0) + (bonuses.allRatesBonus ?? 0));
+      if (key === 'water')     rate *= (1 + (bonuses.waterRateBonus     ?? 0) + (bonuses.allRatesBonus ?? 0));
+      if (key === 'nutrients') rate *= (1 + (bonuses.nutrientsRateBonus ?? 0) + (bonuses.allRatesBonus ?? 0));
+      if (key === 'symbiosis') rate *= (1 + (bonuses.allRatesBonus ?? 0));
+
+      // Wasser-Drain-Reduktion bei negativer Rate
+      if (key === 'water' && rate < 0) rate *= (1 - (bonuses.waterDrainReduction ?? 0));
+
+      // Event-Effekte
+      rate += (eventEffect?.[key] ?? 0);
+=======
    * @param {string} seasonId
    * @param {number} phaseIndex - Baum-Phase (höhere Phasen produzieren mehr)
    * @param {object} bonuses - aus MutationSystem.getBonuses()
@@ -44,6 +72,7 @@ export class ResourceSystem {
 
       // Event-Effekte (additive Rate-Änderung)
       rate += (eventEffect[key] ?? 0);
+>>>>>>> origin/main
 
       res.value = Math.max(0, Math.min(res.max, res.value + rate));
     }
@@ -55,6 +84,11 @@ export class ResourceSystem {
     );
   }
 
+<<<<<<< HEAD
+  get(key)  { return this._res[key]?.value ?? 0; }
+  getAll()  { return this._res; }
+
+=======
   _getSeasonConfig() {
     // Lazy import workaround (avoid circular at module load)
     return require('../config/seasons.js');
@@ -63,6 +97,7 @@ export class ResourceSystem {
   get(key)     { return this._res[key]?.value ?? 0; }
   getAll()     { return this._res; }
 
+>>>>>>> origin/main
   add(delta) {
     for (const [key, val] of Object.entries(delta)) {
       if (this._res[key]) {
@@ -71,10 +106,13 @@ export class ResourceSystem {
     }
   }
 
+<<<<<<< HEAD
+=======
   /**
    * Versucht Ressourcen auszugeben.
    * @returns {boolean} true wenn erfolgreich
    */
+>>>>>>> origin/main
   spend(cost) {
     for (const [key, amount] of Object.entries(cost)) {
       if ((this._res[key]?.value ?? 0) < amount) return false;
