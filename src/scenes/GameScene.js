@@ -74,15 +74,17 @@ export class GameScene extends Phaser.Scene {
         this.resources.tick(this.seasons.current.id, this.tree.phaseIndex, bonuses, eventEffect);
 
         // Codex-Freischaltungen prüfen
-        const newlyDiscovered = this.codex.checkUnlocks({
-          seasonId:  this.seasons.current.id,
-          year:      this.seasons.year,
-          resources: this.resources,
-          mutations: this.mutations,
-        });
-        for (const id of newlyDiscovered) {
-          const entry = this.codex.getAll().find(e => e.id === id);
-          if (entry) this.ui.addEventLog('📖 ' + entry.icon + ' ' + entry.name + ' entdeckt!', 'discovery');
+        const hadNew = this.codex.check(
+          this.resources,
+          this.mutations.getAll(),
+          this.seasons.current.id,
+          this.seasons.year,
+          this.mutations.crisesEncountered
+        );
+        if (hadNew) {
+          for (const entry of this.codex.popNewUnlocks()) {
+            this.ui.addEventLog('📖 ' + entry.icon + ' ' + entry.name + ' entdeckt!', 'discovery');
+          }
         }
 
         // Baum-Wachstum prüfen
@@ -111,6 +113,7 @@ export class GameScene extends Phaser.Scene {
       const W = this.scale.width;
       const H = this.scale.height;
       if (this.ui.panelOpen && ptr.x < 330 && ptr.y > 100) return;
+      if (this.ui.codexOpen) return;
       const cx = W / 2;
       const treeCenterY = H * 0.78 - this.tree.phase.trunkHeight * 0.5;
       const dist = Phaser.Math.Distance.Between(ptr.x, ptr.y, cx, treeCenterY);
@@ -138,11 +141,12 @@ export class GameScene extends Phaser.Scene {
 
   update(time, delta) {
     this.seasons.update(delta);
+    this.tree.tick(delta);        // Wind-Animation jeden Frame
     this._updateParticles(delta);
     this._updateStars();
   }
 
-  // ── Hintergrund ────────────────────────────────────────────────────
+  // ── Hintergrund ───────────────────────────────────────────────────
 
   _drawBackground(season) {
     const W = this.scale.width;
@@ -174,7 +178,7 @@ export class GameScene extends Phaser.Scene {
     this.groundGfx.fillEllipse(W / 2, H * 0.78, W * 1.5, 80);
   }
 
-  // ── Sterne ─────────────────────────────────────────────────────────
+  // ── Sterne ────────────────────────────────────────────────────────
 
   _buildStars() {
     this._stars = Array.from({ length: 90 }, () => ({
@@ -200,7 +204,6 @@ export class GameScene extends Phaser.Scene {
       this.starsGfx.fillStyle(0xffffff, a);
       this.starsGfx.fillCircle(s.x * W, s.y * H, s.r);
     }
-    // Mond
     const moonX = W * 0.83;
     const moonY = H * 0.1;
     this.starsGfx.fillStyle(0xd8dff0, alpha * 0.9);
@@ -209,7 +212,7 @@ export class GameScene extends Phaser.Scene {
     this.starsGfx.fillCircle(moonX, moonY, 28);
   }
 
-  // ── Saison-Wechsel ──────────────────────────────────────────────────
+  // ── Saison-Wechsel ───────────────────────────────────────────────
 
   _onSeasonChange(prev, next) {
     this._drawBackground(next);
@@ -218,7 +221,7 @@ export class GameScene extends Phaser.Scene {
     this.ui.addEventLog(next.emoji + ' ' + next.name + ': ' + next.description, 'season');
   }
 
-  // ── Partikel ────────────────────────────────────────────────────────
+  // ── Partikel ─────────────────────────────────────────────────────────
 
   _spawnParticle() {
     const season = this.seasons.current.id;
