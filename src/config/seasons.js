@@ -1,29 +1,25 @@
 // Jahreszeiten-Konfiguration
-// Alle Werte zentral änderbar – kein Magic-Number-Problem
-
-export const SEASON_DURATION_MS = 60_000; // 60 Sekunden pro Jahreszeit (anpassbar)
+export const SEASON_DURATION_MS = 60_000;
 
 export const SEASONS = [
   {
     id: 'spring',
-    name: 'Frühling',
-    emoji: '🌸',
+    name: 'Fr\u00fchling',
+    emoji: '\uD83C\uDF38',
     skyTop: '#1a2e1a',
     skyBottom: '#2d5a27',
     groundColor: '#3d6b2a',
     ambientLight: '#a8d878',
-    // Ressourcen-Raten-Multiplikatoren
-    resourceMultiplier: { light: 1.2, water: 1.4, nutrients: 1.0 },
-    // Saisonale Ereignisse: name, Wahrscheinlichkeit pro Tick, Effekte
+    resourceMultiplier: { light: 1.2, water: 1.4, nutrients: 1.0, symbiosis: 1.3 },
     events: [
       {
         id: 'bloom',
-        name: 'Blütenpracht',
-        emoji: '🌸',
-        chance: 0.004, // ~0.4% pro Sekunde
+        name: 'Bl\u00fctenpracht',
+        emoji: '\uD83C\uDF38',
+        chance: 0.004,
         duration: 8000,
-        effect: { light: +1.5, water: -0.3, nutrients: +0.5 },
-        description: 'Eine Blütenpracht verstärkt die Photosynthese!',
+        effect: { light: 1.5, water: -0.3, nutrients: 0.5, symbiosis: 0.8 },
+        description: 'Eine Bl\u00fctenpracht verst\u00e4rkt die Photosynthese!',
         color: 0xffb8d0,
       },
     ],
@@ -32,31 +28,31 @@ export const SEASONS = [
   {
     id: 'summer',
     name: 'Sommer',
-    emoji: '☀️',
+    emoji: '\u2600\uFE0F',
     skyTop: '#0a1a0a',
     skyBottom: '#1e4a10',
     groundColor: '#4a7a1e',
     ambientLight: '#f0e060',
-    resourceMultiplier: { light: 1.5, water: 0.7, nutrients: 1.2 },
+    resourceMultiplier: { light: 1.5, water: 0.7, nutrients: 1.2, symbiosis: 1.5 },
     events: [
       {
         id: 'drought',
-        name: 'Dürre',
-        emoji: '🔥',
+        name: 'D\u00fcrre',
+        emoji: '\uD83D\uDD25',
         chance: 0.006,
         duration: 10000,
-        effect: { light: +0.5, water: -1.8, nutrients: -0.5 },
+        effect: { light: 0.5, water: -1.8, nutrients: -0.5, symbiosis: -0.3 },
         description: 'Extreme Hitze! Wasser verdunstet rapide.',
         color: 0xff6020,
       },
       {
         id: 'heatwave',
         name: 'Hitzewelle',
-        emoji: '🌡️',
+        emoji: '\uD83C\uDF21\uFE0F',
         chance: 0.003,
         duration: 6000,
-        effect: { light: +0.3, water: -1.2, nutrients: 0 },
-        description: 'Sengend heiß – Wasser ist knapp.',
+        effect: { light: 0.3, water: -1.2, nutrients: 0, symbiosis: 0 },
+        description: 'Sengend hei\u00df \u2013 Wasser ist knapp.',
         color: 0xffa040,
       },
     ],
@@ -65,84 +61,83 @@ export const SEASONS = [
   {
     id: 'autumn',
     name: 'Herbst',
-    emoji: '🍂',
+    emoji: '\uD83C\uDF42',
     skyTop: '#1a1005',
     skyBottom: '#3d2a10',
     groundColor: '#5a3a0a',
     ambientLight: '#e08030',
-    resourceMultiplier: { light: 0.9, water: 1.1, nutrients: 1.5 },
+    resourceMultiplier: { light: 0.9, water: 1.1, nutrients: 1.5, symbiosis: 0.9 },
     events: [
       {
         id: 'windstorm',
         name: 'Herbststurm',
-        emoji: '🌪️',
+        emoji: '\uD83C\uDF2A\uFE0F',
         chance: 0.005,
         duration: 7000,
-        effect: { light: -0.8, water: +1.0, nutrients: -0.6 },
-        description: 'Ein Sturm fegt über das Land – Ressourcen schwinden!',
+        effect: { light: -0.8, water: 1.0, nutrients: -0.6, symbiosis: -0.4 },
+        description: 'Ein Sturm fegt \u00fcber das Land \u2013 Ressourcen schwinden!',
         color: 0xd07020,
       },
       {
         id: 'harvest',
         name: 'Erntesegen',
-        emoji: '🍄',
+        emoji: '\uD83C\uDF44',
         chance: 0.004,
         duration: 6000,
-        effect: { light: 0, water: 0, nutrients: +2.5 },
-        description: 'Gefallene Blätter nähren den Boden.',
+        effect: { light: 0, water: 0, nutrients: 2.5, symbiosis: 1.0 },
+        description: 'Gefallene Bl\u00e4tter n\u00e4hren den Boden.',
         color: 0x90c040,
       },
     ],
-    description: 'Ressourcen sammeln für den Winter.',
+    description: 'Ressourcen sammeln f\u00fcr den Winter.',
   },
   {
     id: 'winter',
     name: 'Winter',
-    emoji: '❄️',
+    emoji: '\u2744\uFE0F',
     skyTop: '#050a14',
     skyBottom: '#0a1a2e',
     groundColor: '#c8d8e8',
     ambientLight: '#6090c0',
-    resourceMultiplier: { light: 0.5, water: 0.6, nutrients: 0.4 },
+    resourceMultiplier: { light: 0.5, water: 0.6, nutrients: 0.4, symbiosis: 0.3 },
     events: [
       {
         id: 'blizzard',
         name: 'Schneesturm',
-        emoji: '❄️',
+        emoji: '\u2744\uFE0F',
         chance: 0.005,
         duration: 12000,
-        effect: { light: -1.0, water: -0.8, nutrients: -1.0 },
+        effect: { light: -1.0, water: -0.8, nutrients: -1.0, symbiosis: -0.5 },
         description: 'Ein Blizzard zieht auf! Alle Ressourcen sinken schnell.',
         color: 0xa0c8f0,
       },
       {
         id: 'frost',
         name: 'Frost',
-        emoji: '🧊',
+        emoji: '\uD83E\uDDCA',
         chance: 0.007,
         duration: 8000,
-        effect: { light: -0.5, water: -0.5, nutrients: -0.8 },
-        description: 'Tiefer Frost – Nährstoffe gefrieren im Boden.',
+        effect: { light: -0.5, water: -0.5, nutrients: -0.8, symbiosis: -0.3 },
+        description: 'Tiefer Frost \u2013 N\u00e4hrstoffe gefrieren im Boden.',
         color: 0x80a8ff,
       },
     ],
-    description: 'Überlebensmodus. Falsche Mutationen töten Arten.',
+    description: '\u00dcberlebensmodus. Falsche Mutationen t\u00f6ten Arten.',
   },
 ];
 
 export const TREE_PHASES = [
   {
     id: 'seedling',
-    name: 'Sämling',
+    name: 'S\u00e4mling',
     trunkHeight: 60,
     trunkWidth: 8,
     levels: 2,
     branchSpread: 40,
-    // Wachstumsbedingungen (werden aus Ressourcen bezahlt)
-    growthCost: null, // Startphase
+    growthCost: null,
     requiredSymbioses: 0,
     leafColor: 0x4a9a3a,
-    description: 'Ein kleines Bäumchen. Voller Potenzial.',
+    description: 'Ein kleines B\u00e4umchen. Voller Potenzial.',
   },
   {
     id: 'young',
@@ -151,7 +146,6 @@ export const TREE_PHASES = [
     trunkWidth: 14,
     levels: 3,
     branchSpread: 70,
-    // Kosten für Wachstum in diese Phase
     growthCost: { light: 80, water: 40, nutrients: 20 },
     requiredSymbioses: 0,
     leafColor: 0x3a8a2a,
@@ -165,45 +159,63 @@ export const TREE_PHASES = [
     levels: 4,
     branchSpread: 110,
     growthCost: { light: 200, water: 100, nutrients: 80 },
-    requiredSymbioses: 2, // braucht 2 aktive Symbiosen (Mutationen)
+    requiredSymbioses: 2,
     leafColor: 0x2a7a1a,
     description: 'Breite Krone. Das Netzwerk beginnt.',
+  },
+  {
+    id: 'ancient',
+    name: 'Urbaum',
+    trunkHeight: 310,
+    trunkWidth: 34,
+    levels: 5,
+    branchSpread: 160,
+    growthCost: { light: 500, water: 300, nutrients: 250 },
+    requiredSymbioses: 4,
+    leafColor: 0x1a6010,
+    description: 'Jahrhundertealt. Ein ganzes \u00d6kosystem lebt in dir.',
   },
 ];
 
 export const RESOURCES = {
   light: {
     name: 'Licht',
-    emoji: '☀️',
+    emoji: '\u2600\uFE0F',
     color: '#f0e060',
     max: 500,
-    baseRate: 0.8, // pro Sekunde
+    baseRate: 0.8,
   },
   water: {
     name: 'Wasser',
-    emoji: '💧',
+    emoji: '\uD83D\uDCA7',
     color: '#60a0f0',
     max: 500,
     baseRate: 0.5,
   },
   nutrients: {
-    name: 'Nährstoffe',
-    emoji: '🌱',
+    name: 'N\u00e4hrstoffe',
+    emoji: '\uD83C\uDF31',
     color: '#80c040',
     max: 500,
     baseRate: 0.3,
   },
+  symbiosis: {
+    name: 'Symbiose',
+    emoji: '\uD83E\uDEB8',
+    color: '#40d0a0',
+    max: 500,
+    baseRate: 0.15,
+  },
 };
 
-// Mutations-Definitionen (GDD §3.3)
 export const MUTATIONS = [
   {
     id: 'deep_roots',
     name: 'Tiefe Wurzeln',
-    emoji: '🌿',
+    emoji: '\uD83C\uDF3F',
     type: 'passive',
-    description: 'Der Baum gräbt tiefere Wurzeln. Wasser-Regeneration +40% dauerhaft.',
-    lore: 'Unter der Erde träumt der Baum von Meeren, die längst verschwunden sind.',
+    description: 'Der Baum gr\u00e4bt tiefere Wurzeln. Wasser-Regeneration +40% dauerhaft.',
+    lore: 'Unter der Erde tr\u00e4umt der Baum von Meeren, die l\u00e4ngst verschwunden sind.',
     cost: { light: 60, water: 20, nutrients: 30 },
     requiredPhase: 0,
     exclusiveWith: [],
@@ -215,9 +227,9 @@ export const MUTATIONS = [
   {
     id: 'bioluminescence',
     name: 'Biolumineszenz',
-    emoji: '✨',
+    emoji: '\u2728',
     type: 'active',
-    description: 'Leuchtende Blätter locken Nachtinsekten an. Nährstoffe +50%, aber Wasser -20%.',
+    description: 'Leuchtende Bl\u00e4tter locken Nachtinsekten an. N\u00e4hrstoffe +50%, aber Wasser -20%.',
     lore: 'In der Nacht leuchtet der Wald wie ein lebendiger Sternenhimmel.',
     cost: { light: 120, water: 50, nutrients: 40 },
     requiredPhase: 1,
@@ -229,11 +241,11 @@ export const MUTATIONS = [
   },
   {
     id: 'mycel_bridge',
-    name: 'Myzelbücke',
-    emoji: '🍄',
+    name: 'Myzelgef\u00fcge',
+    emoji: '\uD83C\uDF44',
     type: 'symbiosis',
     description: 'Pilznetzwerk im Boden verbindet alle Ressourcen. Alle Raten +20%.',
-    lore: 'Unter jedem Wald schlägt ein zweites Herz aus Pilzfäden.',
+    lore: 'Unter jedem Wald schl\u00e4gt ein zweites Herz aus Pilzf\u00e4den.',
     cost: { light: 80, water: 80, nutrients: 100 },
     requiredPhase: 1,
     exclusiveWith: [],
@@ -245,11 +257,11 @@ export const MUTATIONS = [
   {
     id: 'fire_bark',
     name: 'Feuerfeste Rinde',
-    emoji: '🔥',
+    emoji: '\uD83D\uDD25',
     type: 'crisis',
-    description: 'Nach dem Überstehen einer Dürre wächst feuerfeste Rinde. Wasser-Verlust -30%.',
+    description: 'Nach dem \u00dcberstehen einer D\u00fcrre w\u00e4chst feuerfeste Rinde. Wasser-Verlust -30%.',
     lore: 'Was das Feuer nicht bricht, macht es unsterblich.',
-    cost: { light: 0, water: 0, nutrients: 0 }, // wird durch Krise freigeschaltet
+    cost: { light: 0, water: 0, nutrients: 0 },
     requiredPhase: 1,
     requiredCrisis: 'drought',
     exclusiveWith: ['bioluminescence'],
@@ -261,10 +273,10 @@ export const MUTATIONS = [
   {
     id: 'sun_crown',
     name: 'Sonnen-Krone',
-    emoji: '🌞',
+    emoji: '\uD83C\uDF1E',
     type: 'active',
     description: 'Die Krone richtet sich zur Sonne aus. Licht +60%, aber langsames Wachstum.',
-    lore: 'Manche Bäume verbiegen ihr ganzes Leben, um dem Licht zu folgen.',
+    lore: 'Manche B\u00e4ume verbiegen ihr ganzes Leben, um dem Licht zu folgen.',
     cost: { light: 150, water: 30, nutrients: 60 },
     requiredPhase: 1,
     exclusiveWith: [],
@@ -273,4 +285,39 @@ export const MUTATIONS = [
     unlocked: false,
     active: false,
   },
+  {
+    id: 'root_network',
+    name: 'Wurzelnetz',
+    emoji: '\uD83C\uDF10',
+    type: 'symbiosis',
+    description: 'Weitverzweigte Wurzeln teilen Wasser mit Nachbarpflanzen. Symbiose +35%.',
+    lore: 'Ein Wald ist kein Wettbewerb \u2013 er ist ein Gespr\u00e4ch.',
+    cost: { light: 60, water: 120, nutrients: 80 },
+    requiredPhase: 2,
+    exclusiveWith: [],
+    effect: { allRatesBonus: 0.1, waterRateBonus: 0.25 },
+    visual: { rootExtra: 3 },
+    unlocked: false,
+    active: false,
+  },
+];
+
+export const CODEX_ENTRIES = [
+  // Pilze
+  { id: 'myzel',      name: 'Myzel',          icon: '\uD83C\uDF44', cat: 'Pilznetzwerke', cond: 'Bodenfeuchte \u2265 70%',          unlocked: false },
+  { id: 'glowshroom', name: 'Geisterpilz',    icon: '\uD83D\uDFE3', cat: 'Pilznetzwerke', cond: 'Biolumineszenz aktiv',            unlocked: false },
+  { id: 'fireswamp',  name: 'Feuerschwamm',   icon: '\uD83D\uDD34', cat: 'Pilznetzwerke', cond: 'D\u00fcrre-Event \u00fcberleben', unlocked: false },
+  // Tiere
+  { id: 'firefly',    name: 'Gl\u00fchwürmchen', icon: '\uD83E\uDEB2', cat: 'Tiere',         cond: 'Biolumineszenz + Sommer',        unlocked: false },
+  { id: 'boar',       name: 'Wildschwein',    icon: '\uD83D\uDC17', cat: 'Tiere',         cond: '5+ Jahre, N\u00e4hrstoffe > 300', unlocked: false },
+  { id: 'moth',       name: 'Riesenmotte',    icon: '\uD83E\uDD8B', cat: 'Tiere',         cond: 'Myzelgef\u00fcge + Nacht',        unlocked: false },
+  // Pflanzen
+  { id: 'sundew',     name: 'Sonnentau',      icon: '\uD83C\uDF3F', cat: 'Pflanzen',      cond: 'Fr\u00fchling + Wasser > 350',   unlocked: false },
+  { id: 'titan_arum', name: 'Titanenwurz',    icon: '\uD83C\uDF3A', cat: 'Pflanzen',      cond: 'Jahr 10+, Symbiose > 300',       unlocked: false },
+  { id: 'moonflower', name: 'Mondblume',      icon: '\uD83C\uDF19', cat: 'Pflanzen',      cond: 'Winter \u00fcberleben + Biolum', unlocked: false },
+  // Parasiten
+  { id: 'parasite',   name: 'Schmarotzerpflanze', icon: '\uD83E\uDDA0', cat: 'Parasiten', cond: 'Krisen-Event \u00fcberleben',   unlocked: false },
+  // Legendarys
+  { id: 'eternal_shroom', name: 'Ewiger Schwamm', icon: '\u267E\uFE0F', cat: 'Legendarys', cond: 'Alle Pilze entdeckt',           unlocked: false },
+  { id: 'worldroot',  name: 'Weltenwurzel',   icon: '\uD83C\uDF0D', cat: 'Legendarys',    cond: 'Alle Mutationen aktiv',          unlocked: false },
 ];
