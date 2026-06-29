@@ -4,7 +4,6 @@ import { SeasonSystem } from '../systems/SeasonSystem.js';
 import { TreeSystem } from '../systems/TreeSystem.js';
 import { MutationSystem } from '../systems/MutationSystem.js';
 import { UISystem } from '../systems/UISystem.js';
-import { SEASONS } from '../config/seasons.js';
 
 export class GameScene extends Phaser.Scene {
   constructor() {
@@ -13,9 +12,8 @@ export class GameScene extends Phaser.Scene {
 
   create() {
     const W = this.scale.width;
-    const H = this.scale.height;
 
-    // ── Systeme initialisieren ──────────────────────────────────────
+    // Systeme
     this.resources = new ResourceSystem();
     this.seasons   = new SeasonSystem(this._onSeasonChange.bind(this));
     this.tree      = new TreeSystem(this);
@@ -24,75 +22,66 @@ export class GameScene extends Phaser.Scene {
     // Saison-Ereignis-Callbacks
     this.seasons.onEventStart = (ev) => {
       this.ui.showEventBanner(ev);
-      // Krisen-Mutation freischalten
       this.mutations.onCrisis(ev.id);
-      // Visuelles Flash
       const flash = this.add.rectangle(512, 384, 1024, 768, ev.color || 0xffffff, 0.12).setDepth(10);
       this.tweens.add({ targets: flash, alpha: 0, duration: 1200, onComplete: () => flash.destroy() });
     };
     this.seasons.onEventEnd = () => this.ui.showEventBanner(null);
 
-    // ── Hintergrund ─────────────────────────────────────────────────
+    // Hintergrund-Layer
     this.bgGfx     = this.add.graphics();
     this.groundGfx = this.add.graphics();
 
-    // ── Partikel-Layer ───────────────────────────────────────────────
+    // Partikel-Layer
     this.particles    = this.add.graphics();
     this.particleList = [];
 
-    // ── UI initialisieren (nach Systemen, weil es auf sie referenziert)
+    // UI (nach allen Systemen, weil es auf sie zeigt)
     this.ui = new UISystem(this, this.resources, this.seasons, this.tree, this.mutations);
 
-    // ── Initiales Zeichnen ───────────────────────────────────────────
+    // Initiales Zeichnen
     this._drawBackground(this.seasons.current);
     this.tree.draw(this.seasons.current.id, this.mutations.getAll());
 
-    // ── Ressourcen-Tick (jede Sekunde) ───────────────────────────────
+    // Ressourcen-Tick (1 s)
     this.time.addEvent({
       delay: 1000,
       loop: true,
       callback: () => {
         const bonuses     = this.mutations.getBonuses();
         const eventEffect = this.seasons.getEventEffect();
-        this.resources.tick(
-          this.seasons.current.id,
-          this.tree.phaseIndex,
-          bonuses,
-          eventEffect,
-        );
-        // Wachstum prüfen (Kosten werden in checkGrowth bezahlt)
+        this.resources.tick(this.seasons.current.id, this.tree.phaseIndex, bonuses, eventEffect);
+
         const grown = this.tree.checkGrowth(this.resources, this.mutations.getActiveSymbioses());
         if (grown) {
-          this.ui.showClickFeedback(512, 400, '🌱 Baum wächst!', '#a0d878');
-          // Panel neu rendern falls offen
+          this.ui.showClickFeedback(512, 400, '\uD83C\uDF31 Baum w\u00E4chst!', '#a0d878');
           if (this.ui.panelOpen) this.ui._renderPanel();
         }
         this.ui.update();
       },
     });
 
-    // ── Jahreszeiten-Fortschrittsbalken ──────────────────────────────
+    // Jahreszeit-Fortschrittsbalken (100 ms)
     this.time.addEvent({
       delay: 100,
       loop: true,
       callback: () => this.ui.updateSeasonBar(),
     });
 
-    // ── Klick auf Baum: Licht-Boost ──────────────────────────────────
+    // Klick auf Baum: Licht-Boost
     this.input.on('pointerdown', (ptr) => {
-      // Klick nicht aufs Panel weiterleiten
       if (ptr.x < 330 && ptr.y > 100 && ptr.y < 600 && this.ui.panelOpen) return;
 
       const cx = W / 2;
       const treeCenterY = 600 - this.tree.phase.trunkHeight / 2;
       const dist = Phaser.Math.Distance.Between(ptr.x, ptr.y, cx, treeCenterY);
       if (dist < 120) {
-        this.resources.spend({ light: -15 }); // negatives spend = hinzufügen
-        this.ui.showClickFeedback(ptr.x, ptr.y, '+15 ☀️');
+        this.resources.add({ light: 15 }); // sauberer als spend() mit negativem Wert
+        this.ui.showClickFeedback(ptr.x, ptr.y, '+15 \u2600\uFE0F');
       }
     });
 
-    // ── Partikel-Spawner ─────────────────────────────────────────────
+    // Partikel-Spawner
     this.time.addEvent({
       delay: 800,
       loop: true,
@@ -105,9 +94,6 @@ export class GameScene extends Phaser.Scene {
     this._updateParticles(delta);
   }
 
-  // ────────────────────────────────────────────────────────────────
-  // Hintergrund
-  // ────────────────────────────────────────────────────────────────
   _drawBackground(season) {
     const W = this.scale.width;
     const H = this.scale.height;
@@ -131,25 +117,19 @@ export class GameScene extends Phaser.Scene {
     this.groundGfx.fillStyle(Phaser.Display.Color.GetColor(gc.red, gc.green, gc.blue), 1);
     this.groundGfx.fillRect(0, 600, W, H - 600);
     this.groundGfx.fillStyle(Phaser.Display.Color.GetColor(
-      Math.min(255, gc.red + 20),
+      Math.min(255, gc.red   + 20),
       Math.min(255, gc.green + 20),
-      Math.min(255, gc.blue + 10)
+      Math.min(255, gc.blue  + 10)
     ), 1);
     this.groundGfx.fillEllipse(W / 2, 600, W * 1.4, 80);
   }
 
-  // ────────────────────────────────────────────────────────────────
-  // Jahreszeiten-Wechsel
-  // ────────────────────────────────────────────────────────────────
-  _onSeasonChange(prev, next, year) {
+  _onSeasonChange(prev, next) {
     this._drawBackground(next);
     this.tree.draw(next.id, this.mutations.getAll());
     this.ui.showSeasonTransition(next);
   }
 
-  // ────────────────────────────────────────────────────────────────
-  // Partikel
-  // ────────────────────────────────────────────────────────────────
   _spawnParticle() {
     const season = this.seasons.current.id;
     const W = this.scale.width;
@@ -162,7 +142,6 @@ export class GameScene extends Phaser.Scene {
       size: 2 + Math.random() * 4,
       alpha: 0.6 + Math.random() * 0.4,
       color: colors[season] || 0xffffff,
-      life: 1.0,
     });
     if (this.particleList.length > 60) this.particleList.shift();
   }
