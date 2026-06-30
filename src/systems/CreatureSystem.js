@@ -12,7 +12,7 @@ export class CreatureSystem {
     this.questsDone      = 0;
     this.evolutionStage  = 0;
     this.metamorphosed   = false;
-    // Genetisches Gedächtnis
+    this.treePhaseIndex  = 0;   // wird von GameScene nach jedem Wachstum gesetzt
     this._memoryQuestHaste = 0;
 
     this.onQuestComplete  = null;
@@ -34,7 +34,7 @@ export class CreatureSystem {
     return getEvolutionStage(this.archetype, this.level);
   }
 
-  // ── Normale Quest ────────────────────────────────────────────────────────
+  // ── Quests ─────────────────────────────────────────────────────────────
   startQuest(questId) {
     if (this.questState) return { ok: false, reason: 'Quest läuft bereits.' };
     const quest = QUEST_TYPES.find(q => q.id === questId);
@@ -44,13 +44,12 @@ export class CreatureSystem {
     const qBonus = (this.archetype?.questBonus?.[quest.type] || 0)
                  + this._itemQuestBonus(quest.type)
                  + (quest.type !== 'plant_seed' ? this._memoryQuestHaste : 0);
-    this._memoryQuestHaste = 0; // einmalig
+    this._memoryQuestHaste = 0;
     duration = Math.max(5000, Math.round(duration * (1 - qBonus)));
     this.questState = { quest, startTime: Date.now(), duration };
     return { ok: true, duration };
   }
 
-  // ── Notfall-Quest (von CrisisQuestSystem) ────────────────────────────────
   _startCrisisQuest(questDef) {
     if (this.questState) return { ok: false, reason: 'Quest läuft bereits.' };
     this.questState = { quest: questDef, startTime: Date.now(), duration: questDef.duration };
@@ -59,9 +58,7 @@ export class CreatureSystem {
 
   tick(delta) {
     if (!this.questState) return;
-    if (Date.now() - this.questState.startTime >= this.questState.duration) {
-      this._completeQuest();
-    }
+    if (Date.now() - this.questState.startTime >= this.questState.duration) this._completeQuest();
   }
 
   getQuestProgress() {
@@ -77,7 +74,6 @@ export class CreatureSystem {
     this.questState = null;
     this.questsDone++;
     const reward = { ...quest.reward };
-
     let droppedItem = null;
     if (Math.random() < (reward.itemChance || 0)) {
       droppedItem = this._rollItem();
@@ -93,14 +89,15 @@ export class CreatureSystem {
   }
   markSeedQuestShown() { this.seedQuestShown = true; }
 
+  // Gibt verfügbare Quests gefiltert nach Baumphase zurück
   getAvailableQuests() {
     return QUEST_TYPES.filter(q => {
       if (q.unique) return !this.treeUnlocked && this.questsDone >= 3;
-      return true;
+      return (q.minPhase ?? 0) <= this.treePhaseIndex;
     });
   }
 
-  // ── XP & Level & Evolution ───────────────────────────────────────────────
+  // ── XP & Level & Evolution ───────────────────────────────────────────
   _addXP(amount) {
     this.xp += amount;
     while (this.level < LEVEL_XP.length && this.xp >= LEVEL_XP[this.level]) {
@@ -131,7 +128,7 @@ export class CreatureSystem {
   getXPProgress() { return Math.min(1, this.xp / (LEVEL_XP[this.level] ?? 999)); }
   getXPNeeded()   { return LEVEL_XP[this.level] ?? 999; }
 
-  // ── Boni ─────────────────────────────────────────────────────────────────
+  // ── Boni ───────────────────────────────────────────────────────────────
   getTreeBonuses() {
     const stage = this.currentStage();
     const base = {
@@ -162,7 +159,7 @@ export class CreatureSystem {
     return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
   }
 
-  // ── Save / Restore ────────────────────────────────────────────────────────
+  // ── Save / Restore ────────────────────────────────────────────────────
   serialize() {
     return {
       archetypeId:    this.archetype?.id || null,
