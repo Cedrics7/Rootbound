@@ -1,118 +1,63 @@
 /**
- * SaveSystem – speichert/lädt den kompletten Spielstand via localStorage.
- * Autosave alle 30 Sekunden. Manuelles Save/Load ebenfalls möglich.
+ * SaveSystem – localStorage Persistenz inkl. ForestSystem.
  */
 export class SaveSystem {
-  static KEY = 'rootbound_save_v1';
+  static SAVE_KEY = 'rootbound_save_v2';
 
-  /** Spielstand speichern */
-  static save(resources, mutations, seasons, codex, tree) {
+  static save(resources, mutations, seasons, codex, tree, forest) {
     const data = {
-      version: 1,
-      savedAt: Date.now(),
-      resources: SaveSystem._serializeResources(resources),
-      mutations: SaveSystem._serializeMutations(mutations),
-      seasons:   SaveSystem._serializeSeasons(seasons),
-      codex:     SaveSystem._serializeCodex(codex),
-      tree:      { phaseIndex: tree.phaseIndex },
+      v: 2,
+      resources: Object.fromEntries(
+        Object.entries(resources.getAll()).map(([k,r]) => [k, r.value])
+      ),
+      mutations: mutations.getAll().map(m => ({ id: m.id, level: m.level, active: m.active, unlocked: m.unlocked })),
+      crisesEncountered: [...mutations.crisesEncountered],
+      seasons:  { year: seasons.year, seasonIndex: seasons.seasonIndex, elapsed: seasons.elapsed },
+      codex:    codex.getAll().map(e => ({ id: e.id, unlocked: e.unlocked })),
+      tree:     { phaseIndex: tree.phaseIndex },
+      forest:   forest ? forest.serialize() : null,
     };
-    try {
-      localStorage.setItem(SaveSystem.KEY, JSON.stringify(data));
-      return true;
-    } catch (e) {
-      console.warn('Save fehlgeschlagen:', e);
-      return false;
-    }
+    try { localStorage.setItem(SaveSystem.SAVE_KEY, JSON.stringify(data)); } catch(e) {}
   }
 
-  /** Spielstand laden – gibt Objekt zurück oder null */
   static load() {
     try {
-      const raw = localStorage.getItem(SaveSystem.KEY);
-      if (!raw) return null;
-      const data = JSON.parse(raw);
-      if (!data || data.version !== 1) return null;
-      return data;
-    } catch (e) {
-      console.warn('Load fehlgeschlagen:', e);
-      return null;
-    }
+      const raw = localStorage.getItem(SaveSystem.SAVE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch(e) { return null; }
   }
 
-  /** Spielstand löschen */
-  static deleteSave() {
-    localStorage.removeItem(SaveSystem.KEY);
-  }
-
-  /** Prüft ob ein Spielstand existiert */
-  static hasSave() {
-    return !!localStorage.getItem(SaveSystem.KEY);
-  }
-
-  /** Wiederherstellen aller Systeme aus gespeichertem Zustand */
   static restore(data, resources, mutations, seasons, codex, tree) {
-    if (!data) return;
-
-    // Ressourcen
-    for (const [key, val] of Object.entries(data.resources || {})) {
-      const diff = val - resources.get(key);
-      if (diff !== 0) resources.add({ [key]: diff });
+    if (!data || data.v < 2) return;
+    if (data.resources) {
+      for (const [k, v] of Object.entries(data.resources)) {
+        resources.add({ [k]: v - resources.get(k) });
+      }
     }
-
-    // Mutationen
-    for (const saved of (data.mutations || [])) {
-      const m = mutations.getAll().find(m => m.id === saved.id);
-      if (!m) continue;
-      m.unlocked = saved.unlocked;
-      m.active   = saved.active;
+    if (data.mutations) {
+      for (const saved of data.mutations) {
+        const m = mutations.getAll().find(m => m.id === saved.id);
+        if (m) { m.level = saved.level; m.active = saved.active; m.unlocked = saved.unlocked; }
+      }
     }
-
-    // Krisen-History
-    for (const crisis of (data.seasons?.crisesEncountered || [])) {
-      mutations.crisesEncountered.add(crisis);
+    if (data.crisesEncountered) {
+      for (const c of data.crisesEncountered) mutations.crisesEncountered.add(c);
     }
-
-    // Saison
     if (data.seasons) {
-      seasons.currentIndex = data.seasons.currentIndex ?? 0;
-      seasons.elapsed      = data.seasons.elapsed      ?? 0;
-      seasons.year         = data.seasons.year         ?? 1;
+      seasons.year = data.seasons.year;
+      seasons.seasonIndex = data.seasons.seasonIndex;
+      seasons.elapsed = data.seasons.elapsed;
     }
-
-    // Codex
-    for (const saved of (data.codex || [])) {
-      const e = codex.entries.find(e => e.id === saved.id);
-      if (e) e.unlocked = saved.unlocked;
+    if (data.codex) {
+      for (const saved of data.codex) {
+        const e = codex.getAll().find(e => e.id === saved.id);
+        if (e) e.unlocked = saved.unlocked;
+      }
     }
-
-    // Baum
-    if (data.tree) {
-      tree.phaseIndex = data.tree.phaseIndex ?? 0;
-    }
+    if (data.tree) tree.phaseIndex = data.tree.phaseIndex;
   }
 
-  static _serializeResources(r) {
-    const out = {};
-    for (const [key, res] of Object.entries(r.getAll())) {
-      out[key] = res.value;
-    }
-    return out;
-  }
-
-  static _serializeMutations(m) {
-    return m.getAll().map(mut => ({ id: mut.id, unlocked: mut.unlocked, active: mut.active }));
-  }
-
-  static _serializeSeasons(s) {
-    return {
-      currentIndex:      s.currentIndex,
-      elapsed:           s.elapsed,
-      year:              s.year,
-      crisesEncountered: [...s.crisesEncountered ?? []],
-    };
-  }
-
-  static _serializeCodex(c) {
-    return c.entries.map(e => ({ id: e.id, unlocked: e.unlocked }));
+  static deleteSave() {
+    try { localStorage.removeItem(SaveSystem.SAVE_KEY); } catch(e) {}
   }
 }
