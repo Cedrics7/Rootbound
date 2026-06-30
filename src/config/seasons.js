@@ -71,20 +71,20 @@ export const SEASONS = [
 
 // ── Baum-Phasen (5 Stufen) ────────────────────────────────────────────────
 export const TREE_PHASES = [
-  { id: 'seedling', name: 'Sämling', trunkHeight: 60, trunkWidth: 8, levels: 2, branchSpread: 40,
+  { id: 'seedling', name: 'Sämling',           trunkHeight:  60, trunkWidth:  8, levels: 2, branchSpread:  40,
     growthCost: null, requiredSymbioses: 0, leafColor: 0x4a9a3a,
     description: 'Ein kleines Bäumchen. Voller Potenzial.', upgradeSlots: 1 },
-  { id: 'young', name: 'Junger Baum', trunkHeight: 120, trunkWidth: 14, levels: 3, branchSpread: 70,
-    growthCost: { light: 80, water: 40, nutrients: 20 }, requiredSymbioses: 0, leafColor: 0x3a8a2a,
+  { id: 'young',    name: 'Junger Baum',        trunkHeight: 120, trunkWidth: 14, levels: 3, branchSpread:  70,
+    growthCost: { light: 60, water: 30, nutrients: 15 }, requiredSymbioses: 0, leafColor: 0x3a8a2a,
     description: 'Die Krone wird sichtbar. Erste Wurzeln greifen tief.', upgradeSlots: 2 },
-  { id: 'grown', name: 'Ausgewachsener Baum', trunkHeight: 200, trunkWidth: 22, levels: 4, branchSpread: 110,
-    growthCost: { light: 200, water: 100, nutrients: 80 }, requiredSymbioses: 2, leafColor: 0x2a7a1a,
+  { id: 'grown',    name: 'Ausgewachsener Baum', trunkHeight: 200, trunkWidth: 22, levels: 4, branchSpread: 110,
+    growthCost: { light: 150, water: 80, nutrients: 60 }, requiredSymbioses: 1, leafColor: 0x2a7a1a,
     description: 'Breite Krone. Das Netzwerk beginnt.', upgradeSlots: 3 },
-  { id: 'elder', name: 'Alter Baum', trunkHeight: 260, trunkWidth: 28, levels: 5, branchSpread: 140,
-    growthCost: { light: 350, water: 200, nutrients: 160 }, requiredSymbioses: 3, leafColor: 0x1e6a14,
+  { id: 'elder',    name: 'Alter Baum',          trunkHeight: 260, trunkWidth: 28, levels: 5, branchSpread: 140,
+    growthCost: { light: 280, water: 160, nutrients: 120 }, requiredSymbioses: 2, leafColor: 0x1e6a14,
     description: 'Jahrzehnte alt. Symbionten siedeln sich an.', upgradeSlots: 4 },
-  { id: 'ancient', name: 'Urbaum', trunkHeight: 330, trunkWidth: 36, levels: 6, branchSpread: 170,
-    growthCost: { light: 600, water: 350, nutrients: 280 }, requiredSymbioses: 5, leafColor: 0x1a6010,
+  { id: 'ancient',  name: 'Urbaum',              trunkHeight: 330, trunkWidth: 36, levels: 6, branchSpread: 170,
+    growthCost: { light: 500, water: 300, nutrients: 240 }, requiredSymbioses: 4, leafColor: 0x1a6010,
     description: 'Ein Jahrtausende alter Riese. Das Ökosystem zentriert sich um dich.', upgradeSlots: 6 },
 ];
 
@@ -92,9 +92,8 @@ export const TREE_PHASES = [
 export const FOREST_TREE_TYPES = [
   {
     id: 'birch', name: 'Birke', emoji: '🪸',
-    unlockPhase: 1,           // ab welcher Hauptbaum-Phase pflanzbar
+    unlockPhase: 1,
     plantCost: { light: 60, water: 40, nutrients: 30 },
-    // Passiver Bonus pro Sekunde AN DEN HAUPTBAUM
     passiveBonus: { light: 0.3, water: 0.1, nutrients: 0.1, symbiosis: 0.1 },
     maxLevel: 3,
     levels: [
@@ -159,8 +158,8 @@ export const FOREST_TREE_TYPES = [
     levelUpCost: [null, { light: 100, water: 150, nutrients: 50 }, { light: 200, water: 280, nutrients: 100 }],
     bonusPerLevel: [
       { light: 0.05, water: 0.6, nutrients: 0.1, symbiosis: 0.2 },
-      { light: 0.1, water: 1.0, nutrients: 0.15, symbiosis: 0.35 },
-      { light: 0.15, water: 1.5, nutrients: 0.2, symbiosis: 0.5 },
+      { light: 0.1,  water: 1.0, nutrients: 0.15, symbiosis: 0.35 },
+      { light: 0.15, water: 1.5, nutrients: 0.2,  symbiosis: 0.5 },
     ],
     lore: 'Die Weide liebt das Wasser – ihr Wurzelnetz reicht bis zum Grundwasser.',
   },
@@ -170,13 +169,13 @@ export const FOREST_TREE_TYPES = [
     plantCost: { light: 120, water: 100, nutrients: 150 },
     maxLevel: 2,
     levels: [
-      { trunkH: 30, trunkW: 4,  leafColor: 0x60c050, desc: 'Urwald-Farn. Symbiose +.' },
-      { trunkH: 50, trunkW: 6,  leafColor: 0x40a038, desc: 'Riesenfarn. Maximale Symbiose.' },
+      { trunkH: 30, trunkW: 4, leafColor: 0x60c050, desc: 'Urwald-Farn. Symbiose +.' },
+      { trunkH: 50, trunkW: 6, leafColor: 0x40a038, desc: 'Riesenfarn. Maximale Symbiose.' },
     ],
     levelUpCost: [null, { light: 200, water: 180, nutrients: 250 }],
     bonusPerLevel: [
       { light: 0.05, water: 0.2, nutrients: 0.3, symbiosis: 0.6 },
-      { light: 0.1, water: 0.4, nutrients: 0.5, symbiosis: 1.0 },
+      { light: 0.1,  water: 0.4, nutrients: 0.5, symbiosis: 1.0 },
     ],
     lore: 'Der Farn ist älter als die Dinosaurier – er kennt die Sprache der Erde.',
   },
@@ -186,15 +185,15 @@ export const FOREST_TREE_TYPES = [
     plantCost: { light: 140, water: 90, nutrients: 120 },
     maxLevel: 3,
     levels: [
-      { trunkH: 60, trunkW: 7,  leafColor: 0x8a6a30, desc: 'Holunder. Verbindet alle Baumarten.' },
-      { trunkH: 95, trunkW: 11, leafColor: 0x705820, desc: 'Holunder. Alle Boni +20%.' },
+      { trunkH: 60,  trunkW: 7,  leafColor: 0x8a6a30, desc: 'Holunder. Verbindet alle Baumarten.' },
+      { trunkH: 95,  trunkW: 11, leafColor: 0x705820, desc: 'Holunder. Alle Boni +20%.' },
       { trunkH: 130, trunkW: 15, leafColor: 0x584810, desc: 'Urholunder. Wald-Synergie verdoppelt.' },
     ],
     levelUpCost: [null, { light: 180, water: 120, nutrients: 160 }, { light: 360, water: 240, nutrients: 320 }],
     bonusPerLevel: [
       { light: 0.2, water: 0.2, nutrients: 0.2, symbiosis: 0.4 },
       { light: 0.35, water: 0.35, nutrients: 0.35, symbiosis: 0.7 },
-      { light: 0.5, water: 0.5, nutrients: 0.5, symbiosis: 1.0 },
+      { light: 0.5,  water: 0.5,  nutrients: 0.5,  symbiosis: 1.0 },
     ],
     lore: 'Der Holunder ist der Geist des Waldes – er verbindet alle.',
   },
@@ -204,8 +203,7 @@ export const FOREST_TREE_TYPES = [
 export const ROOT_DEPTH_LEVELS = [
   {
     id: 'humus', depth: 0, name: 'Humusschicht', emoji: '🌱',
-    unlockPhase: 0,
-    unlockCost: null,   // automatisch
+    unlockPhase: 0, unlockCost: null,
     color: 0x5a3a18,
     description: 'Oberflächliche Wurzeln. Basis-Nährstoffe.',
     passiveBonus: { nutrients: 0.1 },
@@ -214,8 +212,7 @@ export const ROOT_DEPTH_LEVELS = [
   },
   {
     id: 'clay', depth: 1, name: 'Tonschicht', emoji: '🪨',
-    unlockPhase: 1,
-    unlockCost: { light: 120, water: 80, nutrients: 100 },
+    unlockPhase: 1, unlockCost: { light: 120, water: 80, nutrients: 100 },
     color: 0x8a6040,
     description: 'Ton speichert Wasser. Wasser +25% permanent.',
     passiveBonus: { water: 0.25, nutrients: 0.05 },
@@ -224,8 +221,7 @@ export const ROOT_DEPTH_LEVELS = [
   },
   {
     id: 'rock', depth: 2, name: 'Steinschicht', emoji: '🪨',
-    unlockPhase: 2,
-    unlockCost: { light: 200, water: 150, nutrients: 200 },
+    unlockPhase: 2, unlockCost: { light: 200, water: 150, nutrients: 200 },
     color: 0x706050,
     description: 'Wurzeln sprengen Gestein. Nährstoffe aus Mineralien.',
     passiveBonus: { nutrients: 0.4, symbiosis: 0.1 },
@@ -234,19 +230,17 @@ export const ROOT_DEPTH_LEVELS = [
   },
   {
     id: 'groundwater', depth: 3, name: 'Grundwasser', emoji: '💧',
-    unlockPhase: 3,
-    unlockCost: { light: 300, water: 250, nutrients: 350 },
+    unlockPhase: 3, unlockCost: { light: 300, water: 250, nutrients: 350 },
     color: 0x3060a0,
-    description: 'Grundwasser angezapft. Wasser +80% konstant. Trockenheit kein Thema mehr.',
+    description: 'Grundwasser angezapft. Wasser +80% konstant.',
     passiveBonus: { water: 0.8 },
-    waterFloor: 20,    // Wasser fällt nie unter diesen Wert
+    waterFloor: 20,
     lore: 'Unter dem Boden liegen Meere – die Wurzeln des Urbaums haben sie gefunden.',
     discovery: 'fossil_water',
   },
   {
     id: 'fossil_layer', depth: 4, name: 'Fossilienschicht', emoji: '🦴',
-    unlockPhase: 3,
-    unlockCost: { light: 400, water: 300, nutrients: 500 },
+    unlockPhase: 3, unlockCost: { light: 400, water: 300, nutrients: 500 },
     color: 0x907050,
     description: 'Uralte organische Reste. Nährstoffe +60% + neue Codex-Entdeckungen.',
     passiveBonus: { nutrients: 0.6, symbiosis: 0.2 },
@@ -255,10 +249,9 @@ export const ROOT_DEPTH_LEVELS = [
   },
   {
     id: 'earth_veins', depth: 5, name: 'Erdadern', emoji: '🌍',
-    unlockPhase: 4,
-    unlockCost: { light: 600, water: 500, nutrients: 700 },
+    unlockPhase: 4, unlockCost: { light: 600, water: 500, nutrients: 700 },
     color: 0x402080,
-    description: 'Geothermal-Energie. Alle Raten +30%. Nur der Urbaum kann sie erreichen.',
+    description: 'Geothermal-Energie. Alle Raten +30%.',
     passiveBonus: { light: 0.3, water: 0.3, nutrients: 0.3, symbiosis: 0.5 },
     allRatesBonus: 0.3,
     lore: 'Tief im Erdinnern pulst eine Energie, die älter ist als das Leben selbst.',
@@ -268,21 +261,21 @@ export const ROOT_DEPTH_LEVELS = [
 
 // ── Ressourcen ────────────────────────────────────────────────────────────
 export const RESOURCES = {
-  light:     { name: 'Licht',      emoji: '☀️', color: '#f0e060', max: 500, baseRate: 0.8 },
-  water:     { name: 'Wasser',     emoji: '💧', color: '#60a0f0', max: 500, baseRate: 0.5 },
-  nutrients: { name: 'Nährstoffe', emoji: '🌱', color: '#80c040', max: 500, baseRate: 0.3 },
-  symbiosis: { name: 'Symbiose',   emoji: '🪸', color: '#40d0a0', max: 500, baseRate: 0.15 },
+  light:     { name: 'Licht',      emoji: '☀️', color: '#f0e060', max: 500, baseRate: 1.8 },
+  water:     { name: 'Wasser',     emoji: '💧', color: '#60a0f0', max: 500, baseRate: 1.2 },
+  nutrients: { name: 'Nährstoffe', emoji: '🌱', color: '#80c040', max: 500, baseRate: 0.7 },
+  symbiosis: { name: 'Symbiose',   emoji: '🪸', color: '#40d0a0', max: 500, baseRate: 0.3 },
 };
 
-// ── Mutationen (14 total, mit Upgrade-Stufen) ─────────────────────────────
+// ── Mutationen ────────────────────────────────────────────────────────────
 export const MUTATIONS = [
   { id: 'deep_roots', name: 'Tiefe Wurzeln', emoji: '🌿', type: 'passive', requiredPhase: 0, exclusiveWith: [],
     lore: 'Unter der Erde träumt der Baum von Meeren, die längst verschwunden sind.',
     unlocked: false, active: false, level: 0,
     upgrades: [
       { level: 1, description: 'Tiefere Wurzeln. Wasser +40%.', cost: { light: 60, water: 20, nutrients: 30 }, effect: { waterRateBonus: 0.4 }, visual: { rootExtra: 2 } },
-      { level: 2, description: 'Wurzeln erreichen Grundwasser. Wasser +70%. Dürre-Schutz -20%.', cost: { light: 100, water: 40, nutrients: 60 }, effect: { waterRateBonus: 0.7, droughtReduction: 0.2 }, visual: { rootExtra: 4 } },
-      { level: 3, description: 'Uralte Wasseradern angezapft. Wasser +120%. Kein Verdursten.', cost: { light: 200, water: 80, nutrients: 120 }, effect: { waterRateBonus: 1.2, waterFloor: 5 }, visual: { rootExtra: 7, rootGlow: true } },
+      { level: 2, description: 'Wurzeln erreichen Grundwasser. Wasser +70%.', cost: { light: 100, water: 40, nutrients: 60 }, effect: { waterRateBonus: 0.7, droughtReduction: 0.2 }, visual: { rootExtra: 4 } },
+      { level: 3, description: 'Uralte Wasseradern angezapft. Wasser +120%.', cost: { light: 200, water: 80, nutrients: 120 }, effect: { waterRateBonus: 1.2, waterFloor: 5 }, visual: { rootExtra: 7, rootGlow: true } },
     ] },
   { id: 'thick_bark', name: 'Dicke Rinde', emoji: '🪵', type: 'passive', requiredPhase: 1, exclusiveWith: ['bioluminescence'],
     lore: 'Jahresringe erzählen von Stürmen, die der Baum überstand.',
@@ -290,7 +283,7 @@ export const MUTATIONS = [
     upgrades: [
       { level: 1, description: 'Dickere Rinde. Alle Verluste durch Events -15%.', cost: { light: 50, water: 30, nutrients: 50 }, effect: { eventDamageReduction: 0.15 }, visual: {} },
       { level: 2, description: 'Gehärtete Rinde. Event-Verluste -30%.', cost: { light: 120, water: 60, nutrients: 100 }, effect: { eventDamageReduction: 0.30 }, visual: { trunkScar: true } },
-      { level: 3, description: 'Steinrinde. Event-Verluste -50%. Immun gegen Frost.', cost: { light: 250, water: 120, nutrients: 200 }, effect: { eventDamageReduction: 0.50, frostImmune: true }, visual: { trunkScar: true, trunkColorTint: 0x605040 } },
+      { level: 3, description: 'Steinrinde. Event-Verluste -50%.', cost: { light: 250, water: 120, nutrients: 200 }, effect: { eventDamageReduction: 0.50, frostImmune: true }, visual: { trunkScar: true, trunkColorTint: 0x605040 } },
     ] },
   { id: 'photosynthesis_plus', name: 'Sonnenblätter', emoji: '☀️', type: 'passive', requiredPhase: 0, exclusiveWith: [],
     lore: 'Manche Blätter sind so groß, dass Vögel darunter schlafen.',
@@ -298,7 +291,7 @@ export const MUTATIONS = [
     upgrades: [
       { level: 1, description: 'Breitere Blätter. Licht +30%.', cost: { light: 40, water: 20, nutrients: 15 }, effect: { lightRateBonus: 0.3 }, visual: {} },
       { level: 2, description: 'Riesige Blätter. Licht +60%.', cost: { light: 100, water: 40, nutrients: 50 }, effect: { lightRateBonus: 0.6 }, visual: { leafSizeBonus: 0.3 } },
-      { level: 3, description: 'Photosynthetische Perfektion. Licht +100%. Licht nie unter 10.', cost: { light: 220, water: 80, nutrients: 100 }, effect: { lightRateBonus: 1.0, lightFloor: 10 }, visual: { leafSizeBonus: 0.6, leafGlow: true, leafColor: 0xf8f040 } },
+      { level: 3, description: 'Photosynthetische Perfektion. Licht +100%.', cost: { light: 220, water: 80, nutrients: 100 }, effect: { lightRateBonus: 1.0, lightFloor: 10 }, visual: { leafSizeBonus: 0.6, leafGlow: true, leafColor: 0xf8f040 } },
     ] },
   { id: 'bioluminescence', name: 'Biolumineszenz', emoji: '✨', type: 'active', requiredPhase: 1, exclusiveWith: ['fire_bark', 'thick_bark'],
     lore: 'In der Nacht leuchtet der Wald wie ein lebendiger Sternenhimmel.',
@@ -322,7 +315,7 @@ export const MUTATIONS = [
     upgrades: [
       { level: 1, description: 'Baum zieht leichten Regen an. Wasser +35%.', cost: { light: 100, water: 80, nutrients: 60 }, effect: { waterRateBonus: 0.35 }, visual: {} },
       { level: 2, description: 'Regenwolken entstehen. Wasser +70%.', cost: { light: 200, water: 150, nutrients: 120 }, effect: { waterRateBonus: 0.7 }, visual: { cloudParticles: true } },
-      { level: 3, description: 'Meister des Wetters. Wasser +120%. Dürren seltener.', cost: { light: 380, water: 280, nutrients: 220 }, effect: { waterRateBonus: 1.2, eventSuppression: { drought: 0.5, heatwave: 0.5 } }, visual: { cloudParticles: true } },
+      { level: 3, description: 'Meister des Wetters. Wasser +120%.', cost: { light: 380, water: 280, nutrients: 220 }, effect: { waterRateBonus: 1.2, eventSuppression: { drought: 0.5, heatwave: 0.5 } }, visual: { cloudParticles: true } },
     ] },
   { id: 'mycel_bridge', name: 'Myzelbrücke', emoji: '🍄', type: 'symbiosis', requiredPhase: 1, exclusiveWith: [],
     lore: 'Unter jedem Wald schlägt ein zweites Herz aus Pilzfäden.',
@@ -354,7 +347,7 @@ export const MUTATIONS = [
     upgrades: [
       { level: 1, description: 'Dürre-Wasserverlust -30%.', cost: { light: 0, water: 0, nutrients: 0 }, effect: { waterDrainReduction: 0.3 }, visual: { trunkColorTint: 0x8a2010 } },
       { level: 2, description: 'Ascheschicht. Verlust -55%.', cost: { light: 80, water: 0, nutrients: 40 }, effect: { waterDrainReduction: 0.55 }, visual: { trunkColorTint: 0x6a1808 } },
-      { level: 3, description: 'Phönix-Rinde. Verlust -80%. Dürren geben Licht.', cost: { light: 200, water: 0, nutrients: 100 }, effect: { waterDrainReduction: 0.8 }, visual: { trunkColorTint: 0x501006, trunkGlow: 0xff4010 } },
+      { level: 3, description: 'Phönix-Rinde. Verlust -80%.', cost: { light: 200, water: 0, nutrients: 100 }, effect: { waterDrainReduction: 0.8 }, visual: { trunkColorTint: 0x501006, trunkGlow: 0xff4010 } },
     ] },
   { id: 'storm_roots', name: 'Sturmwurzeln', emoji: '🌪️', type: 'crisis', requiredPhase: 2, requiredCrisis: 'windstorm', exclusiveWith: [],
     lore: 'Der Sturm biegt – aber der Baum bricht nicht.',
@@ -400,29 +393,28 @@ export const SYMBIONTS = [
 ];
 
 export const CODEX_ENTRIES = [
-  { id: 'myzel',        name: 'Myzel',             icon: '🍄', cat: 'Pilznetzwerke', cond: 'Bodenfeuchte ≥ 70%',           unlocked: false },
-  { id: 'glowshroom',   name: 'Geisterpilz',        icon: '🟟', cat: 'Pilznetzwerke', cond: 'Biolumineszenz aktiv',         unlocked: false },
-  { id: 'fireswamp',    name: 'Feuerschwamm',       icon: '🔴', cat: 'Pilznetzwerke', cond: 'Dürre-Event überleben',        unlocked: false },
-  { id: 'firefly',      name: 'Glühwürmchen',       icon: '🪲', cat: 'Tiere',         cond: 'Biolumineszenz + Sommer',      unlocked: false },
-  { id: 'boar',         name: 'Wildschwein',        icon: '🐗', cat: 'Tiere',         cond: '5+ Jahre, Nährstoffe > 300',   unlocked: false },
-  { id: 'moth',         name: 'Riesenmotte',        icon: '🦋', cat: 'Tiere',         cond: 'Myzelbrücke + Nacht',          unlocked: false },
-  { id: 'owl',          name: 'Eule',               icon: '🦉', cat: 'Tiere',         cond: 'Alter Baum + Winter',          unlocked: false },
-  { id: 'deer',         name: 'Hirsch',             icon: '🦌', cat: 'Tiere',         cond: 'Urbaum erreicht',              unlocked: false },
-  { id: 'bee',          name: 'Biene',              icon: '🐝', cat: 'Tiere',         cond: 'Bestäuber-Schwarm + Sommer',   unlocked: false },
-  { id: 'sundew',       name: 'Sonnentau',          icon: '🌿', cat: 'Pflanzen',      cond: 'Frühling + Wasser > 350',      unlocked: false },
-  { id: 'titan_arum',   name: 'Titanenwurz',        icon: '🌺', cat: 'Pflanzen',      cond: 'Jahr 10+, Symbiose > 300',     unlocked: false },
-  { id: 'moonflower',   name: 'Mondblume',          icon: '🌙', cat: 'Pflanzen',      cond: 'Winter überleben + Biolum',    unlocked: false },
-  { id: 'lichen',       name: 'Uralte Flechte',     icon: '🧫', cat: 'Pflanzen',      cond: 'Flechtenkranz Stufe 3',        unlocked: false },
-  { id: 'parasite',     name: 'Schmarotzerpflanze', icon: '🦠', cat: 'Parasiten',     cond: 'Krisen-Event überleben',        unlocked: false },
-  // Wald & Tiefe
-  { id: 'clay_minerals',  name: 'Tonminerale',      icon: '🪨', cat: 'Tiefenschicht',  cond: 'Tonschicht erschlossen',       unlocked: false },
-  { id: 'stone_crystals', name: 'Steinkristalle',   icon: '💠', cat: 'Tiefenschicht',  cond: 'Steinschicht erschlossen',     unlocked: false },
-  { id: 'fossil_water',   name: 'Fossilwasser',     icon: '💧', cat: 'Tiefenschicht',  cond: 'Grundwasser angezapft',        unlocked: false },
-  { id: 'ancient_fossil', name: 'Urzeitfossil',     icon: '🦴', cat: 'Tiefenschicht',  cond: 'Fossilienschicht gefunden',    unlocked: false },
-  { id: 'earth_core',     name: 'Erdkern-Ader',     icon: '🌍', cat: 'Tiefenschicht',  cond: 'Erdadern erschlossen',         unlocked: false },
-  { id: 'forest_birch',   name: 'Birkenwald',       icon: '🪸', cat: 'Wald',           cond: '3 Birken gepflanzt',           unlocked: false },
-  { id: 'forest_oak',     name: 'Eichenhain',       icon: '🌿', cat: 'Wald',           cond: 'Eiche auf max. Stufe',         unlocked: false },
-  { id: 'full_forest',    name: 'Vollständiger Wald', icon: '🌳', cat: 'Wald',         cond: '5 verschiedene Baumarten',     unlocked: false },
-  { id: 'eternal',        name: 'Ewiger Schwamm',   icon: '♾️', cat: 'Legendarys',    cond: 'Alle Pilze entdeckt',           unlocked: false },
-  { id: 'worldroot',      name: 'Weltenwurzel',     icon: '🌍', cat: 'Legendarys',    cond: 'Weltenwurzel Stufe 3',          unlocked: false },
+  { id: 'myzel',          name: 'Myzel',              icon: '🍄', cat: 'Pilznetzwerke', cond: 'Bodenfeuchte ≥ 70%',         unlocked: false },
+  { id: 'glowshroom',     name: 'Geisterpilz',        icon: '🟣', cat: 'Pilznetzwerke', cond: 'Biolumineszenz aktiv',        unlocked: false },
+  { id: 'fireswamp',      name: 'Feuerschwamm',       icon: '🔴', cat: 'Pilznetzwerke', cond: 'Dürre-Event überleben',       unlocked: false },
+  { id: 'firefly',        name: 'Glühwürmchen',       icon: '🪲', cat: 'Tiere',         cond: 'Biolumineszenz + Sommer',     unlocked: false },
+  { id: 'boar',           name: 'Wildschwein',        icon: '🐗', cat: 'Tiere',         cond: '5+ Jahre, Nährstoffe > 300',  unlocked: false },
+  { id: 'moth',           name: 'Riesenmotte',        icon: '🦋', cat: 'Tiere',         cond: 'Myzelbrücke + Nacht',         unlocked: false },
+  { id: 'owl',            name: 'Eule',               icon: '🦉', cat: 'Tiere',         cond: 'Alter Baum + Winter',         unlocked: false },
+  { id: 'deer',           name: 'Hirsch',             icon: '🦌', cat: 'Tiere',         cond: 'Urbaum erreicht',             unlocked: false },
+  { id: 'bee',            name: 'Biene',              icon: '🐝', cat: 'Tiere',         cond: 'Bestäuber-Schwarm + Sommer',  unlocked: false },
+  { id: 'sundew',         name: 'Sonnentau',          icon: '🌿', cat: 'Pflanzen',      cond: 'Frühling + Wasser > 350',     unlocked: false },
+  { id: 'titan_arum',     name: 'Titanenwurz',        icon: '🌺', cat: 'Pflanzen',      cond: 'Jahr 10+, Symbiose > 300',    unlocked: false },
+  { id: 'moonflower',     name: 'Mondblume',          icon: '🌙', cat: 'Pflanzen',      cond: 'Winter überleben + Biolum',   unlocked: false },
+  { id: 'lichen',         name: 'Uralte Flechte',     icon: '🧫', cat: 'Pflanzen',      cond: 'Flechtenkranz Stufe 3',       unlocked: false },
+  { id: 'parasite',       name: 'Schmarotzerpflanze', icon: '🦠', cat: 'Parasiten',     cond: 'Krisen-Event überleben',      unlocked: false },
+  { id: 'clay_minerals',  name: 'Tonminerale',        icon: '🪨', cat: 'Tiefenschicht', cond: 'Tonschicht erschlossen',      unlocked: false },
+  { id: 'stone_crystals', name: 'Steinkristalle',     icon: '💠', cat: 'Tiefenschicht', cond: 'Steinschicht erschlossen',    unlocked: false },
+  { id: 'fossil_water',   name: 'Fossilwasser',       icon: '💧', cat: 'Tiefenschicht', cond: 'Grundwasser angezapft',       unlocked: false },
+  { id: 'ancient_fossil', name: 'Urzeitfossil',       icon: '🦴', cat: 'Tiefenschicht', cond: 'Fossilienschicht gefunden',   unlocked: false },
+  { id: 'earth_core',     name: 'Erdkern-Ader',       icon: '🌍', cat: 'Tiefenschicht', cond: 'Erdadern erschlossen',        unlocked: false },
+  { id: 'forest_birch',   name: 'Birkenwald',         icon: '🪸', cat: 'Wald',          cond: '3 Birken gepflanzt',          unlocked: false },
+  { id: 'forest_oak',     name: 'Eichenhain',         icon: '🌿', cat: 'Wald',          cond: 'Eiche auf max. Stufe',        unlocked: false },
+  { id: 'full_forest',    name: 'Vollständiger Wald', icon: '🌳', cat: 'Wald',          cond: '5 verschiedene Baumarten',    unlocked: false },
+  { id: 'eternal',        name: 'Ewiger Schwamm',     icon: '♾️', cat: 'Legendarys',   cond: 'Alle Pilze entdeckt',         unlocked: false },
+  { id: 'worldroot',      name: 'Weltenwurzel',       icon: '🌍', cat: 'Legendarys',   cond: 'Weltenwurzel Stufe 3',        unlocked: false },
 ];
