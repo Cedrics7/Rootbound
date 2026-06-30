@@ -121,8 +121,12 @@ export class GameScene extends Phaser.Scene {
       if (data) {
         SaveSystem.restore(data, this.resources, this.mutations, this.seasons, this.codex, this.tree);
         if (data.forest)   this.forest.restore(data.forest);
-        if (data.creature) { this.creature.restore(data.creature); this._startWithCreature(false); }
-        else { this._showArchetypeChoice(); }
+        if (data.creature) {
+          this.creature.restore(data.creature);
+          // Wenn Baum bereits freigeschaltet war: ForestRenderer direkt einschalten
+          if (this.creature.treeUnlocked) this.forestRenderer.show();
+          this._startWithCreature(false);
+        } else { this._showArchetypeChoice(); }
       } else { this._showArchetypeChoice(); }
     } else { this._showArchetypeChoice(); }
 
@@ -165,7 +169,6 @@ export class GameScene extends Phaser.Scene {
       const symCount = this.mutations.getActiveSymbioses();
       if (symCount>0) this.resources.add({ symbiosis: symCount*0.4 });
       if (this.forest.trees.length>0) this.resources.add({ symbiosis: this.forest.trees.length*0.2 });
-      // treePhaseIndex an Creature weitergeben
       this.creature.treePhaseIndex = this.tree.phaseIndex;
       const hadNew = this.codex.check(this.resources, this.mutations.getAll(), this.seasons.current.id, this.seasons.year, this.mutations.crisesEncountered);
       if (hadNew) {
@@ -250,6 +253,8 @@ export class GameScene extends Phaser.Scene {
   _unlockTree() {
     this._drawBackground(this.seasons.current);
     this.tree.draw(this.seasons.current.id, this.mutations.getVisuals());
+    // ForestRenderer ab jetzt sichtbar
+    this.forestRenderer.show();
     this._buildTreeUI();
     this._introLog('🌳 Der Samen keimt. Ein Baum wird wachsen.', 'discovery');
     this.time.delayedCall(1500, () => this._introLog('🌲 Pflege den Baum – er und dein Tier stärken sich gegenseitig.', 'info'));
@@ -454,7 +459,6 @@ export class GameScene extends Phaser.Scene {
       this.ui.showSeasonTransition(next);
       this.ui.addEventLog(next.emoji + ' ' + next.name + ': ' + next.description, 'season');
     }
-    // Saisonale Entscheidung triggern
     this.seasonChoice.onSeasonChange(next.id);
   }
 
