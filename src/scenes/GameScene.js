@@ -34,6 +34,7 @@ export class GameScene extends Phaser.Scene {
 
     this.bgGfx    = this.add.graphics().setDepth(0);
     this.groundGfx= this.add.graphics().setDepth(1);
+    this.flowerGfx= this.add.graphics().setDepth(2); // Bodenblumen
     this.starsGfx = this.add.graphics().setDepth(2);
     this._buildStars();
     this.particles    = this.add.graphics().setDepth(3);
@@ -123,7 +124,6 @@ export class GameScene extends Phaser.Scene {
         if (data.forest)   this.forest.restore(data.forest);
         if (data.creature) {
           this.creature.restore(data.creature);
-          // Wenn Baum bereits freigeschaltet war: ForestRenderer direkt einschalten
           if (this.creature.treeUnlocked) this.forestRenderer.show();
           this._startWithCreature(false);
         } else { this._showArchetypeChoice(); }
@@ -253,7 +253,6 @@ export class GameScene extends Phaser.Scene {
   _unlockTree() {
     this._drawBackground(this.seasons.current);
     this.tree.draw(this.seasons.current.id, this.mutations.getVisuals());
-    // ForestRenderer ab jetzt sichtbar
     this.forestRenderer.show();
     this._buildTreeUI();
     this._introLog('🌳 Der Samen keimt. Ein Baum wird wachsen.', 'discovery');
@@ -326,7 +325,7 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  // ── Game Over + Genetisches Gedächtnis ───────────────────────────────
+  // ── Game Over ────────────────────────────────────────────────────────
   _checkGameOver() {
     if (this.mutations.getBonuses().immortal) return;
     const allEmpty = ['light','water','nutrients'].every(k => this.resources.get(k) <= 0);
@@ -402,6 +401,8 @@ export class GameScene extends Phaser.Scene {
     this.crisisQ.tick(delta);
     this._updateParticles(delta);
     this._updateStars();
+    // Bodenblumen immer zeichnen (unabhängig vom Baum-Unlock)
+    this._drawFlowers(this.seasons.current.id);
   }
 
   _drawBackground(season) {
@@ -427,6 +428,37 @@ export class GameScene extends Phaser.Scene {
       Math.min(255, gc.red+18), Math.min(255, gc.green+18), Math.min(255, gc.blue+8)
     ), 1);
     this.groundGfx.fillEllipse(W/2, H*0.78, W*1.5, 80);
+  }
+
+  // ── Bodenblumen – deterministisch (kein random pro Frame) ─────────────
+  _drawFlowers(seasonId) {
+    if (!this.flowerGfx) return;
+    const W = this.scale.width, H = this.scale.height;
+    this.flowerGfx.clear();
+    if (seasonId !== 'spring' && seasonId !== 'summer') return;
+
+    // Feste Positionen (seed-basiert via Index, kein Math.random)
+    const groundY = H * 0.78;
+    const basePositions = [
+      0.08, 0.14, 0.21, 0.27, 0.33, 0.40, 0.47, 0.53,
+      0.60, 0.67, 0.73, 0.80, 0.86, 0.92,
+    ];
+    const offsets    = [0, 6, -4, 8, -6, 3, -8, 5, -3, 7, -5, 2, -7, 4];
+    const sizes      = [3, 2, 4, 2, 3, 2, 4, 3, 2, 4, 3, 2, 3, 4];
+    const springCol  = 0xffb8d0;
+    const summerCol  = 0xffee60;
+    const col = seasonId === 'spring' ? springCol : summerCol;
+
+    basePositions.forEach((xFrac, i) => {
+      const fx = W * xFrac;
+      const fy = groundY + offsets[i % offsets.length] - 4;
+      const r  = sizes[i % sizes.length];
+      this.flowerGfx.fillStyle(col, 0.85);
+      this.flowerGfx.fillCircle(fx, fy, r);
+      // kleiner weißer Kern
+      this.flowerGfx.fillStyle(0xffffff, 0.6);
+      this.flowerGfx.fillCircle(fx, fy, Math.max(1, r - 1.5));
+    });
   }
 
   _buildStars() {

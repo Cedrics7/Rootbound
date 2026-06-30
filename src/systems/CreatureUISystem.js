@@ -133,6 +133,7 @@ export class CreatureUISystem {
   }
 
   // ── Krisen-Quest-Banner ───────────────────────────────────────────────
+  // Banner sitzt bei y=290 (unterhalb der HUD-Buttons bei 110/146/180/214)
   offerCrisisQuest(questDef) {
     this.clearCrisisOffer();
     if (!this._built) return;
@@ -140,53 +141,60 @@ export class CreatureUISystem {
     const s = this.scene;
     const push = (el) => { this._crisisEls.push(el); return el; };
 
-    const BX = 16, BY = 186, BW = 170, BH = 26;
+    const BX = 16, BY = 290, BW = 170, BH = 48;
+
+    // Hintergrund
     const bg = push(
       s.add.rectangle(BX, BY, BW, BH, 0x3a0a00, 0.96)
         .setOrigin(0, 0).setDepth(13).setStrokeStyle(1.5, 0xff4010)
     );
-    const txt = push(
-      s.add.text(BX + BW/2, BY + BH/2, '🆘 ' + questDef.emoji + ' ' + questDef.name,
+    push(
+      s.add.text(BX + BW/2, BY + 10, '🆘 ' + questDef.emoji + ' ' + questDef.name,
         { fontFamily: 'sans-serif', fontSize: '10px', fill: '#ff8060' }
       ).setOrigin(0.5).setDepth(14)
     );
-    s.tweens.add({ targets: bg, alpha: { from: 0.96, to: 0.60 }, yoyo: true, repeat: -1, duration: 600 });
 
-    s.time.delayedCall(300, () => {
-      if (!this._crisisOffered) return;
-      const btn = push(
-        s.add.rectangle(BX + BW - 46, BY + BH/2, 82, 20, 0x5a1000, 0.96)
-          .setOrigin(0.5).setDepth(14).setInteractive({ cursor: 'pointer' }).setStrokeStyle(1, 0xff6030)
-      );
-      const bTxt = push(
-        s.add.text(BX + BW - 46, BY + BH/2, '⚡ Annehmen',
-          { fontFamily: 'sans-serif', fontSize: '9px', fill: '#ffb080' }
-        ).setOrigin(0.5).setDepth(15)
-      );
-      btn.on('pointerover', () => btn.setFillStyle(0x7a1800, 0.98));
-      btn.on('pointerout',  () => btn.setFillStyle(0x5a1000, 0.96));
-      btn.on('pointerdown', () => {
-        const result = s.crisisQ?.accept();
-        if (result?.ok) {
-          txt.setText('🆘 ' + questDef.emoji + ' Läuft...');
-          btn.destroy(); bTxt.destroy();
-          s.tweens.killTweensOf(bg);
-          bg.setAlpha(0.7).setStrokeStyle(1, 0xff8040);
-        }
-      });
+    // Annehmen-Button – direkt erstellt, kein delayedCall
+    const btn = push(
+      s.add.rectangle(BX + BW/2, BY + 34, BW - 20, 20, 0x5a1000, 0.97)
+        .setOrigin(0.5).setDepth(14).setInteractive({ cursor: 'pointer' }).setStrokeStyle(1, 0xff6030)
+    );
+    const bTxt = push(
+      s.add.text(BX + BW/2, BY + 34, '⚡ Annehmen',
+        { fontFamily: 'sans-serif', fontSize: '9px', fill: '#ffb080' }
+      ).setOrigin(0.5).setDepth(15)
+    );
+    btn.on('pointerover', () => btn.setFillStyle(0x7a1800, 0.98));
+    btn.on('pointerout',  () => btn.setFillStyle(0x5a1000, 0.97));
+    btn.on('pointerdown', () => {
+      const result = s.crisisQ?.accept();
+      if (result?.ok) {
+        // Banner in "läuft" umwandeln
+        btn.destroy();  bTxt.destroy();
+        this._crisisEls = this._crisisEls.filter(e => e !== btn && e !== bTxt);
+        bg.setStrokeStyle(1, 0xff8040);
+        const runTxt = push(
+          s.add.text(BX + BW/2, BY + BH/2, '🆘 ' + questDef.emoji + ' Läuft...',
+            { fontFamily: 'sans-serif', fontSize: '10px', fill: '#ffb080' }
+          ).setOrigin(0.5).setDepth(14)
+        );
+      }
     });
 
-    const shield = push(
-      s.add.text(16, 284, '🛡 ' + Math.round(questDef.damageReduction * 100) + '% Krisenschutz verfügbar',
+    s.tweens.add({ targets: bg, alpha: { from: 0.96, to: 0.55 }, yoyo: true, repeat: -1, duration: 700 });
+
+    push(
+      s.add.text(BX, BY + BH + 6, '🛡 ' + Math.round(questDef.damageReduction * 100) + '% Krisenschutz',
         { fontFamily: 'sans-serif', fontSize: '9px', fill: '#ff9060' }
       ).setDepth(13)
     );
-    s.tweens.add({ targets: shield, alpha: { from: 1, to: 0.4 }, yoyo: true, repeat: -1, duration: 900 });
   }
 
   clearCrisisOffer() {
     this._crisisOffered = false;
-    for (const el of this._crisisEls) { this.scene.tweens?.killTweensOf(el); el.destroy(); }
+    for (const el of this._crisisEls) {
+      try { this.scene.tweens?.killTweensOf(el); el.destroy(); } catch(e) {}
+    }
     this._crisisEls = [];
   }
 
@@ -231,7 +239,6 @@ export class CreatureUISystem {
       push(s.add.text(PX + 12, ry + 22, q.description, {
         fontFamily: 'sans-serif', fontSize: '9px', fill: '#708060', wordWrap: { width: PW - 24 },
       }).setDepth(24));
-      // Belohnungs-Vorschau
       const resStr = q.reward.resources
         ? Object.entries(q.reward.resources).map(([k, v]) => '+' + v + ' ' + { light: '☀️', water: '💧', nutrients: '🌱', symbiosis: '🪼' }[k]).join('  ')
         : '';
@@ -249,8 +256,8 @@ export class CreatureUISystem {
   }
 
   _clearAll() {
-    for (const el of this._elements)   el.destroy();
-    for (const el of this._questPanel) el.destroy();
+    for (const el of this._elements)   { try { el.destroy(); } catch(e) {} }
+    for (const el of this._questPanel) { try { el.destroy(); } catch(e) {} }
     this.clearCrisisOffer();
     this._elements   = [];
     this._questPanel = [];
