@@ -1,6 +1,5 @@
 import { CREATURE_ARCHETYPES, QUEST_TYPES } from '../config/creatures.js';
 
-// Tier-Farben für Quest-Labels
 const TIER_STYLE = {
   basic:    { fill: '#a0d060', prefix: '' },
   advanced: { fill: '#60d0d0', prefix: '★ ' },
@@ -12,7 +11,7 @@ export class CreatureUISystem {
     this.scene    = scene;
     this.creature = creatureSystem;
     this._onArchetypeChosen = onArchetypeChosen;
-    this._geneticSummary = geneticSummary;
+    this._geneticSummary    = geneticSummary;
     this._elements      = [];
     this._questPanel    = [];
     this._crisisEls     = [];
@@ -26,11 +25,11 @@ export class CreatureUISystem {
     this._crisisOffered = false;
   }
 
-  // ── Archetyp-Wahl ──────────────────────────────────────────────────
+  // ── Archetyp-Wahl ────────────────────────────────────────────────────
   showArchetypeChoice() {
     this._clearAll();
     const s = this.scene, W = s.scale.width, H = s.scale.height;
-    const push = (el) => { this._elements.push(el); return el; };
+    const push = el => { this._elements.push(el); return el; };
 
     push(s.add.rectangle(W/2, H/2, W, H, 0x000000, 0.75).setDepth(40));
     push(s.add.text(W/2, H*0.12, '🌿 Rootbound', {
@@ -84,12 +83,12 @@ export class CreatureUISystem {
     });
   }
 
-  // ── HUD ──────────────────────────────────────────────────────────────────
+  // ── HUD ──────────────────────────────────────────────────────────────
   buildHUD() {
     if (this._built) return;
     this._built = true;
     const s = this.scene;
-    const push = (el) => { this._elements.push(el); return el; };
+    const push = el => { this._elements.push(el); return el; };
 
     const bg = push(
       s.add.rectangle(16, 214, 170, 26, 0x0a140a, 0.90)
@@ -132,59 +131,81 @@ export class CreatureUISystem {
     }
   }
 
-  // ── Krisen-Quest-Banner ───────────────────────────────────────────────
-  // Banner sitzt bei y=290 (unterhalb der HUD-Buttons bei 110/146/180/214)
+  // ── Krisen-Quest-Banner ──────────────────────────────────────────────
+  // FIX: kein Tween auf dem interaktiven bg-Rect (blockierte Pointer-Events),
+  //      stattdessen Tween nur auf dem Rahmen-Rechteck dahinter.
+  //      Button wird sofort erstellt (kein delayedCall).
+  //      Fehler-Feedback sichtbar wenn accept() fehlschlägt.
   offerCrisisQuest(questDef) {
     this.clearCrisisOffer();
     if (!this._built) return;
     this._crisisOffered = true;
     const s = this.scene;
-    const push = (el) => { this._crisisEls.push(el); return el; };
+    const push = el => { this._crisisEls.push(el); return el; };
 
-    const BX = 16, BY = 290, BW = 170, BH = 48;
+    const BX = 16, BY = 290, BW = 170, BH = 52;
 
-    // Hintergrund
-    const bg = push(
+    // Pulsierendes Glow-Rect HINTER dem interaktiven Bereich (kein Input)
+    const glow = push(
+      s.add.rectangle(BX + BW/2, BY + BH/2, BW + 6, BH + 6, 0xff4010, 0)
+        .setDepth(12)
+    );
+    s.tweens.add({
+      targets: glow, fillAlpha: { from: 0, to: 0.35 },
+      yoyo: true, repeat: -1, duration: 650,
+    });
+
+    // Hintergrund (statisch, kein Tween → Input immer stabil)
+    push(
       s.add.rectangle(BX, BY, BW, BH, 0x3a0a00, 0.96)
         .setOrigin(0, 0).setDepth(13).setStrokeStyle(1.5, 0xff4010)
     );
+
     push(
       s.add.text(BX + BW/2, BY + 10, '🆘 ' + questDef.emoji + ' ' + questDef.name,
         { fontFamily: 'sans-serif', fontSize: '10px', fill: '#ff8060' }
       ).setOrigin(0.5).setDepth(14)
     );
 
-    // Annehmen-Button – direkt erstellt, kein delayedCall
+    // Fehler-Text (unsichtbar bis accept() fehlschlägt)
+    const errTxt = push(
+      s.add.text(BX + BW/2, BY + BH + 14, '',
+        { fontFamily: 'sans-serif', fontSize: '9px', fill: '#ff6040' }
+      ).setOrigin(0.5).setDepth(14)
+    );
+
+    // Annehmen-Button – sofort erstellt, Depth 15 (über allem)
     const btn = push(
-      s.add.rectangle(BX + BW/2, BY + 34, BW - 20, 20, 0x5a1000, 0.97)
-        .setOrigin(0.5).setDepth(14).setInteractive({ cursor: 'pointer' }).setStrokeStyle(1, 0xff6030)
+      s.add.rectangle(BX + BW/2, BY + 36, BW - 20, 22, 0x5a1000, 0.97)
+        .setOrigin(0.5).setDepth(15).setInteractive({ useHandCursor: true })
+        .setStrokeStyle(1, 0xff6030)
     );
     const bTxt = push(
-      s.add.text(BX + BW/2, BY + 34, '⚡ Annehmen',
-        { fontFamily: 'sans-serif', fontSize: '9px', fill: '#ffb080' }
-      ).setOrigin(0.5).setDepth(15)
+      s.add.text(BX + BW/2, BY + 36, '⚡ Annehmen',
+        { fontFamily: 'sans-serif', fontSize: '10px', fill: '#ffb080' }
+      ).setOrigin(0.5).setDepth(16)
     );
-    btn.on('pointerover', () => btn.setFillStyle(0x7a1800, 0.98));
-    btn.on('pointerout',  () => btn.setFillStyle(0x5a1000, 0.97));
+
+    btn.on('pointerover', () => { btn.setFillStyle(0x7a2000, 0.98); bTxt.setStyle({ fill: '#ffd0a0' }); });
+    btn.on('pointerout',  () => { btn.setFillStyle(0x5a1000, 0.97); bTxt.setStyle({ fill: '#ffb080' }); });
     btn.on('pointerdown', () => {
       const result = s.crisisQ?.accept();
       if (result?.ok) {
-        // Banner in "läuft" umwandeln
-        btn.destroy();  bTxt.destroy();
-        this._crisisEls = this._crisisEls.filter(e => e !== btn && e !== bTxt);
-        bg.setStrokeStyle(1, 0xff8040);
-        const runTxt = push(
-          s.add.text(BX + BW/2, BY + BH/2, '🆘 ' + questDef.emoji + ' Läuft...',
-            { fontFamily: 'sans-serif', fontSize: '10px', fill: '#ffb080' }
-          ).setOrigin(0.5).setDepth(14)
-        );
+        // Button zu "läuft" umwandeln
+        btn.disableInteractive();
+        btn.setFillStyle(0x2a0800, 0.8).setStrokeStyle(1, 0xff8040);
+        bTxt.setText('🆘 ' + questDef.emoji + ' Läuft...');
+        errTxt.setText('');
+      } else {
+        // Sichtbares Feedback warum es nicht klappt
+        const reason = result?.reason ?? 'Nicht verfügbar.';
+        errTxt.setText('⚠ ' + reason);
+        s.tweens.add({ targets: errTxt, alpha: { from: 1, to: 0 }, delay: 2500, duration: 500 });
       }
     });
 
-    s.tweens.add({ targets: bg, alpha: { from: 0.96, to: 0.55 }, yoyo: true, repeat: -1, duration: 700 });
-
     push(
-      s.add.text(BX, BY + BH + 6, '🛡 ' + Math.round(questDef.damageReduction * 100) + '% Krisenschutz',
+      s.add.text(BX, BY + BH + 4, '🛡 ' + Math.round(questDef.damageReduction * 100) + '% Krisenschutz',
         { fontFamily: 'sans-serif', fontSize: '9px', fill: '#ff9060' }
       ).setDepth(13)
     );
@@ -198,7 +219,7 @@ export class CreatureUISystem {
     this._crisisEls = [];
   }
 
-  // ── Quest-Panel (mit Tier-Färbung) ────────────────────────────────────────
+  // ── Quest-Panel ──────────────────────────────────────────────────────
   _openQuestPanel(lbl) {
     if (this.creature.isOnQuest()) return;
     this._questPanelOpen = true;
@@ -219,7 +240,7 @@ export class CreatureUISystem {
     const s = this.scene;
     const quests = this.creature.getAvailableQuests();
     const PX = 16, PY = 284, PW = 210, ROWH = 60;
-    const push = (el) => { this._questPanel.push(el); return el; };
+    const push = el => { this._questPanel.push(el); return el; };
 
     push(s.add.rectangle(PX, PY, PW, quests.length * ROWH + 12, 0x060e06, 0.95)
       .setOrigin(0, 0).setDepth(22).setStrokeStyle(1, 0x304020));
@@ -230,10 +251,11 @@ export class CreatureUISystem {
       const durationSec = Math.round(q.duration / 1000);
       const row = push(
         s.add.rectangle(PX + 4, ry, PW - 8, ROWH - 4, 0x0c120a, 0.92)
-          .setOrigin(0, 0).setDepth(23).setStrokeStyle(1, q.tier === 'elder' ? 0x806020 : 0x283818, 0.8)
+          .setOrigin(0, 0).setDepth(23)
+          .setStrokeStyle(1, q.tier === 'elder' ? 0x806020 : 0x283818, 0.8)
           .setInteractive({ cursor: 'pointer' })
       );
-      push(s.add.text(PX + 12, ry + 5,  ts.prefix + q.emoji + ' ' + q.name, {
+      push(s.add.text(PX + 12, ry + 5, ts.prefix + q.emoji + ' ' + q.name, {
         fontFamily: '"Cormorant Garamond",Georgia,serif', fontSize: '12px', fill: ts.fill,
       }).setDepth(24));
       push(s.add.text(PX + 12, ry + 22, q.description, {
@@ -259,10 +281,10 @@ export class CreatureUISystem {
     for (const el of this._elements)   { try { el.destroy(); } catch(e) {} }
     for (const el of this._questPanel) { try { el.destroy(); } catch(e) {} }
     this.clearCrisisOffer();
-    this._elements   = [];
-    this._questPanel = [];
-    this._built      = false;
-    this._questBtn   = null;
+    this._elements    = [];
+    this._questPanel  = [];
+    this._built       = false;
+    this._questBtn    = null;
   }
 
   destroy() { this._clearAll(); }
