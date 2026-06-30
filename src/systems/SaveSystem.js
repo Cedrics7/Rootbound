@@ -1,16 +1,16 @@
 /**
- * SaveSystem – localStorage Persistenz inkl. ForestSystem.
+ * SaveSystem – localStorage Persistenz inkl. ForestSystem + CreatureSystem.
  */
 export class SaveSystem {
-  static SAVE_KEY = 'rootbound_save_v2';
+  static SAVE_KEY = 'rootbound_save_v3';
 
   static hasSave() {
     try { return !!localStorage.getItem(SaveSystem.SAVE_KEY); } catch(e) { return false; }
   }
 
-  static save(resources, mutations, seasons, codex, tree, forest) {
+  static save(resources, mutations, seasons, codex, tree, forest, creature) {
     const data = {
-      v: 2,
+      v: 3,
       resources: Object.fromEntries(
         Object.entries(resources.getAll()).map(([k, r]) => [k, r.value])
       ),
@@ -19,7 +19,8 @@ export class SaveSystem {
       seasons:  { year: seasons.year, seasonIndex: seasons.seasonIndex, elapsed: seasons.elapsed },
       codex:    codex.getAll().map(e => ({ id: e.id, unlocked: e.unlocked })),
       tree:     { phaseIndex: tree.phaseIndex },
-      forest:   forest ? forest.serialize() : null,
+      forest:   forest   ? forest.serialize()   : null,
+      creature: creature ? creature.serialize() : null,
     };
     try { localStorage.setItem(SaveSystem.SAVE_KEY, JSON.stringify(data)); } catch(e) {}
   }
@@ -32,7 +33,7 @@ export class SaveSystem {
   }
 
   static restore(data, resources, mutations, seasons, codex, tree) {
-    if (!data || data.v < 2) return;
+    if (!data || data.v < 3) return;
     if (data.resources) {
       for (const [k, v] of Object.entries(data.resources)) {
         resources.add({ [k]: v - resources.get(k) });
