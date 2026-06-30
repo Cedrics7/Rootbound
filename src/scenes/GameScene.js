@@ -14,6 +14,8 @@ import { CreatureUISystem }     from '../systems/CreatureUISystem.js';
 import { CrisisQuestSystem }    from '../systems/CrisisQuestSystem.js';
 import { GeneticMemorySystem }  from '../systems/GeneticMemorySystem.js';
 import { SeasonalChoiceSystem } from '../systems/SeasonalChoiceSystem.js';
+import { SkillSystem }          from '../systems/SkillSystem.js';
+import { SkillTreeUI }          from '../systems/SkillTreeUI.js';
 import { ITEM_DROPS }           from '../config/creatures.js';
 
 export class GameScene extends Phaser.Scene {
@@ -31,10 +33,11 @@ export class GameScene extends Phaser.Scene {
     this.crisisQ    = new CrisisQuestSystem(this.creature, this.seasons);
     this.genes      = new GeneticMemorySystem();
     this.seasonChoice = new SeasonalChoiceSystem(this, this.resources, this.creature);
+    this.skillSys   = new SkillSystem();
 
     this.bgGfx    = this.add.graphics().setDepth(0);
     this.groundGfx= this.add.graphics().setDepth(1);
-    this.flowerGfx= this.add.graphics().setDepth(2); // Bodenblumen
+    this.flowerGfx= this.add.graphics().setDepth(2);
     this.starsGfx = this.add.graphics().setDepth(2);
     this._buildStars();
     this.particles    = this.add.graphics().setDepth(3);
@@ -47,7 +50,17 @@ export class GameScene extends Phaser.Scene {
 
     // ── Creature-Callbacks ──────────────────────────────────────────────
     this.creature.onQuestComplete = (quest, reward, item) => {
-      if (reward.resources) this.resources.add(reward.resources);
+      if (reward.resources) {
+        // Quest-Ressource-Boni aus Skills anwenden
+        const skillBon = this.skillSys.getBonuses();
+        const boosted = { ...reward.resources };
+        if (skillBon.questResourceBonus) {
+          for (const [k, mult] of Object.entries(skillBon.questResourceBonus)) {
+            if (boosted[k]) boosted[k] = Math.round(boosted[k] * (1 + mult));
+          }
+        }
+        this.resources.add(boosted);
+      }
       const msg = quest.emoji + ' ' + quest.name + ' abgeschlossen! +' + quest.reward.xp + ' XP'
         + (item ? '  ' + item.emoji + ' ' + item.name + ' gefunden!' : '');
       if (this.ui) this.ui.addEventLog(msg, 'growth');
@@ -124,6 +137,7 @@ export class GameScene extends Phaser.Scene {
         if (data.forest)   this.forest.restore(data.forest);
         if (data.creature) {
           this.creature.restore(data.creature);
+          if (data.skills) this.skillSys.restore(data.skills);
           if (this.creature.treeUnlocked) this.forestRenderer.show();
           this._startWithCreature(false);
         } else { this._showArchetypeChoice(); }
@@ -143,6 +157,7 @@ export class GameScene extends Phaser.Scene {
       const forestBonus   = this.forest.getForestBonus();
       const creatureBon   = this.creature.isReady() ? this.creature.getTreeBonuses() : {};
       const choiceBon     = this.seasonChoice.getSeasonBonuses();
+      const skillBon      = this.skillSys.getBonuses();
       const eventEffect   = this.seasons.getEventEffect();
       const crisisReduction = this.crisisQ.getDamageReduction();
       const reducedEffect = crisisReduction > 0 ? {
@@ -151,24 +166,47 @@ export class GameScene extends Phaser.Scene {
         nutrients: (eventEffect.nutrients ||0)*(1-crisisReduction),
       } : eventEffect;
 
+      // Skill-Krisenschaden-Reduktion auf reducedEffect anwenden
+      const totalEventReduction = (skillBon.eventDamageReduction || 0);
+      const finalEffect = totalEventReduction > 0 ? {
+        light:     (reducedEffect.light     ||0)*(1-totalEventReduction),
+        water:     (reducedEffect.water     ||0)*(1-totalEventReduction),
+        nutrients: (reducedEffect.nutrients ||0)*(1-totalEventReduction),
+      } : reducedEffect;
+
       const bonuses = {
-        lightRateBonus:       (mutBonuses.lightRateBonus     ||0)+(forestBonus.light     ||0)+(creatureBon.lightRateBonus     ||0)+(this.mutations._geneticLightBonus||0)+(choiceBon.lightRateBonus||0),
-        waterRateBonus:       (mutBonuses.waterRateBonus     ||0)+(forestBonus.water     ||0)+(rootBonuses.water||0)+(creatureBon.waterRateBonus||0)+(choiceBon.waterRateBonus||0),
-        nutrientsRateBonus:   (mutBonuses.nutrientsRateBonus ||0)+(forestBonus.nutrients ||0)+(rootBonuses.nutrients||0)+(creatureBon.nutrientsRateBonus||0)+(choiceBon.nutrientsRateBonus||0),
-        allRatesBonus:        (mutBonuses.allRatesBonus      ||0)+(rootBonuses.allRatesBonus||0)+(forestBonus.allRatesBonus||0)+(creatureBon.allRatesBonus||0)+(choiceBon.allRatesBonus||0)+(choiceBon.allRatesMalus||0),
-        waterDrainReduction:  mutBonuses.waterDrainReduction  ||0,
+        lightRateBonus:       (mutBonuses.lightRateBonus     ||0)+(forestBonus.light     ||0)+(creatureBon.lightRateBonus     ||0)+(this.mutations._geneticLightBonus||0)+(choiceBon.lightRateBonus||0)+(skillBon.lightRateBonus||0),
+        waterRateBonus:       (mutBonuses.waterRateBonus     ||0)+(forestBonus.water     ||0)+(rootBonuses.water||0)+(creatureBon.waterRateBonus||0)+(choiceBon.waterRateBonus||0)+(skillBon.waterRateBonus||0),
+        nutrientsRateBonus:   (mutBonuses.nutrientsRateBonus ||0)+(forestBonus.nutrients ||0)+(rootBonuses.nutrients||0)+(creatureBon.nutrientsRateBonus||0)+(choiceBon.nutrientsRateBonus||0)+(skillBon.nutrientsRateBonus||0),
+        allRatesBonus:        (mutBonuses.allRatesBonus      ||0)+(rootBonuses.allRatesBonus||0)+(forestBonus.allRatesBonus||0)+(creatureBon.allRatesBonus||0)+(choiceBon.allRatesBonus||0)+(choiceBon.allRatesMalus||0)+(skillBon.allRatesBonus||0),
+        waterDrainReduction:  (mutBonuses.waterDrainReduction||0)+(skillBon.waterDrainReduction||0),
         eventDamageReduction: (mutBonuses.eventDamageReduction||0)+(choiceBon.eventDamageReduction||0),
         winterMalusReduction: (mutBonuses.winterMalusReduction||0)+(rootBonuses.winterMalusReduction||0)+(forestBonus.winterMalusReduction||0)+(choiceBon.winterMalusReduction||0),
         waterFloor:    Math.max(mutBonuses.waterFloor||0, rootBonuses.waterFloor||0),
         resourceFloor: mutBonuses.resourceFloor||0,
         immortal:      mutBonuses.immortal||false,
       };
-      this.resources.tick(this.seasons.current.id, this.tree.phaseIndex, bonuses, reducedEffect);
+
+      // Wald-Bonus-Multiplikator aus Skills
+      if (skillBon.forestBonusMultiplier > 0) {
+        bonuses.allRatesBonus += (forestBonus.allRatesBonus || 0) * skillBon.forestBonusMultiplier;
+      }
+
+      this.resources.tick(this.seasons.current.id, this.tree.phaseIndex, bonuses, finalEffect);
+
       if (bonuses.waterFloor>0 && this.resources.get('water')<bonuses.waterFloor)
         this.resources.add({ water: bonuses.waterFloor - this.resources.get('water') });
+
       const symCount = this.mutations.getActiveSymbioses();
       if (symCount>0) this.resources.add({ symbiosis: symCount*0.4 });
       if (this.forest.trees.length>0) this.resources.add({ symbiosis: this.forest.trees.length*0.2 });
+
+      // Skill: Symbiose-Passiv + Wald-Symbiose-Bonus
+      if (skillBon.symbiosisPassive > 0)
+        this.resources.add({ symbiosis: skillBon.symbiosisPassive });
+      if (skillBon.forestSymbiosisBonus > 0 && this.forest.trees.length > 0)
+        this.resources.add({ symbiosis: skillBon.forestSymbiosisBonus * this.forest.trees.length });
+
       this.creature.treePhaseIndex = this.tree.phaseIndex;
       const hadNew = this.codex.check(this.resources, this.mutations.getAll(), this.seasons.current.id, this.seasons.year, this.mutations.crisesEncountered);
       if (hadNew) {
@@ -193,7 +231,10 @@ export class GameScene extends Phaser.Scene {
 
     this.time.addEvent({ delay: 30_000, loop: true, callback: () => {
       if (!this.creature.isReady()) return;
-      SaveSystem.save(this.resources, this.mutations, this.seasons, this.codex, this.tree, this.forest, this.creature);
+      SaveSystem.save(
+        this.resources, this.mutations, this.seasons, this.codex,
+        this.tree, this.forest, this.creature, this.skillSys
+      );
       if (this.ui) this.ui.addEventLog('💾 Autosave.', 'info');
     }});
 
@@ -203,12 +244,18 @@ export class GameScene extends Phaser.Scene {
       if (this.ui?.forestPanelOpen  && ptr.x < 360 && ptr.y > 110) return;
       if (this.ui?.codexOpen) return;
       if (this.seasonChoice._active) return;
+      if (this.skillTreeUI?.isOpen) return;
       const W = this.scale.width, H = this.scale.height;
       const cx = W/2, treeCY = H*0.78 - this.tree.phase.trunkHeight*0.5;
       if (Phaser.Math.Distance.Between(ptr.x, ptr.y, cx, treeCY) < 150) {
         this.resources.add({ light: 15 });
         this.ui.showClickFeedback(ptr.x, ptr.y, '+15 ☀️');
       }
+    });
+
+    // Tastenkürzel K = Skill-Baum
+    this.input.keyboard?.on('keydown-K', () => {
+      if (this.creature.treeUnlocked && this.skillTreeUI) this.skillTreeUI.toggle();
     });
 
     this.time.addEvent({ delay: 700, loop: true, callback: () => this._spawnParticle() });
@@ -258,6 +305,7 @@ export class GameScene extends Phaser.Scene {
     this._introLog('🌳 Der Samen keimt. Ein Baum wird wachsen.', 'discovery');
     this.time.delayedCall(1500, () => this._introLog('🌲 Pflege den Baum – er und dein Tier stärken sich gegenseitig.', 'info'));
     this.time.delayedCall(3500, () => this._introLog('🌱 Klick auf den Baum = +15 Licht. Mutationen öffnen!', 'info'));
+    this.time.delayedCall(5500, () => this._introLog('🌳 [K] oder Skill-Button = Skill-Baum öffnen!', 'info'));
     const W = this.scale.width, H = this.scale.height;
     const flash = this.add.rectangle(W/2, H/2, W, H, 0x80ff40, 0.18).setDepth(15);
     this.tweens.add({ targets: flash, alpha: 0, duration: 1800, onComplete: () => flash.destroy() });
@@ -266,6 +314,21 @@ export class GameScene extends Phaser.Scene {
   _buildTreeUI() {
     if (this.ui) return;
     this.ui = new UISystem(this, this.resources, this.seasons, this.tree, this.mutations, this.codex, this.forest);
+
+    // Skill-Baum Button ins HUD
+    this.skillTreeUI = new SkillTreeUI(this, this.skillSys, this.resources, this.creature);
+    if (this.ui.addSkillButton) {
+      this.ui.addSkillButton(() => this.skillTreeUI.toggle());
+    } else {
+      // Fallback: eigener Mini-Button falls UISystem addSkillButton noch nicht hat
+      const s = this;
+      const btn = this.add.rectangle(16, 355, 80, 20, 0x0a1a0a, 0.90)
+        .setOrigin(0, 0).setDepth(11).setInteractive({ cursor: 'pointer' }).setStrokeStyle(1, 0x3a5a1a);
+      this.add.text(56, 365, '🌳 Skills [K]', { fontFamily: 'sans-serif', fontSize: '9px', fill: '#80c060' })
+        .setOrigin(0.5).setDepth(12);
+      btn.on('pointerdown', () => this.skillTreeUI.toggle());
+    }
+
     this.seasons.onEventStart = (ev) => {
       this.ui.showEventBanner(ev);
       this.ui.addEventLog(ev.emoji + ' ' + ev.name + ' – ' + ev.description, 'event');
@@ -401,7 +464,6 @@ export class GameScene extends Phaser.Scene {
     this.crisisQ.tick(delta);
     this._updateParticles(delta);
     this._updateStars();
-    // Bodenblumen immer zeichnen (unabhängig vom Baum-Unlock)
     this._drawFlowers(this.seasons.current.id);
   }
 
@@ -430,34 +492,22 @@ export class GameScene extends Phaser.Scene {
     this.groundGfx.fillEllipse(W/2, H*0.78, W*1.5, 80);
   }
 
-  // ── Bodenblumen – deterministisch (kein random pro Frame) ─────────────
   _drawFlowers(seasonId) {
     if (!this.flowerGfx) return;
     const W = this.scale.width, H = this.scale.height;
     this.flowerGfx.clear();
     if (seasonId !== 'spring' && seasonId !== 'summer') return;
-
-    // Feste Positionen (seed-basiert via Index, kein Math.random)
     const groundY = H * 0.78;
-    const basePositions = [
-      0.08, 0.14, 0.21, 0.27, 0.33, 0.40, 0.47, 0.53,
-      0.60, 0.67, 0.73, 0.80, 0.86, 0.92,
-    ];
-    const offsets    = [0, 6, -4, 8, -6, 3, -8, 5, -3, 7, -5, 2, -7, 4];
-    const sizes      = [3, 2, 4, 2, 3, 2, 4, 3, 2, 4, 3, 2, 3, 4];
-    const springCol  = 0xffb8d0;
-    const summerCol  = 0xffee60;
-    const col = seasonId === 'spring' ? springCol : summerCol;
-
+    const basePositions = [0.08,0.14,0.21,0.27,0.33,0.40,0.47,0.53,0.60,0.67,0.73,0.80,0.86,0.92];
+    const offsets  = [0,6,-4,8,-6,3,-8,5,-3,7,-5,2,-7,4];
+    const sizes    = [3,2,4,2,3,2,4,3,2,4,3,2,3,4];
+    const col = seasonId === 'spring' ? 0xffb8d0 : 0xffee60;
     basePositions.forEach((xFrac, i) => {
-      const fx = W * xFrac;
-      const fy = groundY + offsets[i % offsets.length] - 4;
-      const r  = sizes[i % sizes.length];
+      const fx = W*xFrac, fy = groundY+offsets[i%offsets.length]-4, r = sizes[i%sizes.length];
       this.flowerGfx.fillStyle(col, 0.85);
       this.flowerGfx.fillCircle(fx, fy, r);
-      // kleiner weißer Kern
       this.flowerGfx.fillStyle(0xffffff, 0.6);
-      this.flowerGfx.fillCircle(fx, fy, Math.max(1, r - 1.5));
+      this.flowerGfx.fillCircle(fx, fy, Math.max(1, r-1.5));
     });
   }
 
