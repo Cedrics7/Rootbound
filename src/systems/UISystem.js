@@ -35,6 +35,7 @@ export class UISystem {
       ...DS, fontSize: '13px', fill: '#ffdd80', stroke: '#000', strokeThickness: 2, align: 'center',
     }).setOrigin(0.5).setAlpha(0).setDepth(12);
 
+    // ── Ressourcen-Panel (oben rechts) ──
     const rx = W - 205;
     s.add.text(rx, 14, 'Ressourcen', { ...DS, fontSize: '14px', fill: '#a0d878' }).setDepth(10);
     this.resTexts = {}; this.resBars = {};
@@ -49,6 +50,26 @@ export class UISystem {
       ).setOrigin(0, 0).setDepth(10);
     });
 
+    // ── Wachstums-Fortschrittsanzeige (unter Ressourcen) ──
+    const gx = rx;
+    const gy = 36 + 4 * 34 + 8; // direkt unter symbiosis-bar
+    s.add.text(gx, gy, 'Nächste Baum-Phase', { ...BS, fontSize: '10px', fill: '#607850' }).setDepth(10);
+    // 3 separate Balken für jede Ressource
+    this._growthBars = {};
+    this._growthTexts = {};
+    const growRes = ['light', 'water', 'nutrients'];
+    const growColors = { light: 0xf0d840, water: 0x40a0f0, nutrients: 0x70c030 };
+    const growEmojis = { light: '☀️', water: '💧', nutrients: '🌱' };
+    growRes.forEach((key, i) => {
+      const by = gy + 16 + i * 16;
+      s.add.text(gx, by, growEmojis[key], { fontFamily: 'sans-serif', fontSize: '10px' }).setDepth(10);
+      s.add.rectangle(gx + 18, by + 2, 140, 8, 0x1a1a1a).setOrigin(0, 0).setDepth(10);
+      this._growthBars[key]  = s.add.rectangle(gx + 18, by + 2, 0, 8, growColors[key]).setOrigin(0, 0).setDepth(10);
+      this._growthTexts[key] = s.add.text(gx + 162, by, '', { fontFamily: 'sans-serif', fontSize: '9px', fill: '#909888' }).setDepth(10);
+    });
+    this._growthLabel = s.add.text(gx, gy + 16 + 3 * 16 + 2, '', { fontFamily: 'sans-serif', fontSize: '10px', fill: '#a0d878' }).setDepth(10);
+
+    // ── Saison-Fortschrittsbalken (unten) ──
     s.add.rectangle(W * 0.2, H - 22, W * 0.6, 8, 0x1a1a1a).setOrigin(0, 0).setDepth(10);
     this.seasonBar = s.add.rectangle(W * 0.2, H - 22, 0, 8, 0x60a040).setOrigin(0, 0).setDepth(10);
     s.add.text(W * 0.2, H - 36, 'Jahreszeit-Fortschritt', { ...BS, fontSize: '10px', fill: '#555' }).setDepth(10);
@@ -306,7 +327,7 @@ export class UISystem {
 
     const depY = PY + 46 + availTrees.length * 62 + 16;
     this._forestElements.push(
-      s.add.text(PX + 12, depY, '🕳️ Wurzeltiefe', { fontFamily: '"Cormorant Garamond",Georgia,serif', fontSize: '13px', fill: '#a08860' }).setDepth(21)
+      s.add.text(PX + 12, depY, '🗓️ Wurzeltiefe', { fontFamily: '"Cormorant Garamond",Georgia,serif', fontSize: '13px', fill: '#a08860' }).setDepth(21)
     );
 
     const DEPTH_EMOJI = { water: '💧', nutrients: '🌱', allRatesBonus: '⚡', symbiosis: '🪸', waterFloor: 'Wasser min.' };
@@ -391,24 +412,54 @@ export class UISystem {
     this.yearText.setText('Jahr ' + this.seasons.year);
     const ni = this.tree.phaseIndex + 1;
     const nextP = ni < TREE_PHASES.length ? TREE_PHASES[ni] : null;
+
+    // ── Wachstums-Fortschrittsbalken aktualisieren ──
     if (nextP && !this.tree.isGrowing) {
-      const cost = nextP.growthCost, symReq = nextP.requiredSymbioses || 0, symCur = this.mutations.getActiveSymbioses();
-      const parts = [];
-      if (cost) {
-        if (this.resources.get('light')     < cost.light)     parts.push('☀️ '  + Math.floor(this.resources.get('light'))     + '/' + cost.light);
-        if (this.resources.get('water')     < cost.water)     parts.push('💧 '  + Math.floor(this.resources.get('water'))     + '/' + cost.water);
-        if (this.resources.get('nutrients') < cost.nutrients) parts.push('🌱 '  + Math.floor(this.resources.get('nutrients')) + '/' + cost.nutrients);
-      }
-      if (symReq > 0 && symCur < symReq) parts.push('🧦 Symbiosen: ' + symCur + '/' + symReq);
-      this.growthHint.setText(parts.length ? 'Nächste Phase: ' + parts.join('  ') : '✓ Wachstum möglich!');
-    } else if (!nextP) {
-      this.growthHint.setText('🌳 Urbaum – vollständig');
+      const cost = nextP.growthCost;
+      const symReq = nextP.requiredSymbioses || 0;
+      const symCur = this.mutations.getActiveSymbioses();
+      const keys = ['light', 'water', 'nutrients'];
+      let allMet = true;
+      keys.forEach(key => {
+        const cur = this.resources.get(key);
+        const req = cost?.[key] ?? 0;
+        const pct = req > 0 ? Math.min(1, cur / req) : 1;
+        if (pct < 1) allMet = false;
+        this._growthBars[key].width  = Math.round(140 * pct);
+        this._growthBars[key].fillColor = pct >= 1 ? 0x80ff40 : { light: 0xf0d840, water: 0x40a0f0, nutrients: 0x70c030 }[key];
+        this._growthTexts[key].setText(req > 0 ? Math.floor(cur) + '/' + req : '✓');
+      });
+      const symOk = symCur >= symReq;
+      if (!symOk) allMet = false;
+      this._growthLabel.setText(
+        allMet && symOk
+          ? '✨ Bereit! Wachstum startet automatisch'
+          : symReq > 0 && !symOk
+            ? '🧦 Symbiosen: ' + symCur + '/' + symReq
+            : ''
+      );
+      this._growthLabel.setStyle({ fill: allMet && symOk ? '#a0ff60' : '#607850' });
+    } else if (this.tree.isGrowing) {
+      ['light', 'water', 'nutrients'].forEach(k => {
+        this._growthBars[k].width = 140;
+        this._growthBars[k].fillColor = 0x80ff40;
+        this._growthTexts[k].setText('✓');
+      });
+      this._growthLabel.setText('🌱 Wächst...');
     } else {
-      this.growthHint.setText('🌱 Wächst...');
+      ['light', 'water', 'nutrients'].forEach(k => {
+        this._growthBars[k].width = 140;
+        this._growthBars[k].fillColor = 0xa0ff60;
+        this._growthTexts[k].setText('✓');
+      });
+      this._growthLabel.setText('🌳 Urbaum – vollständig');
     }
+
     this.phaseText.setText('Baum: ' + this.tree.phase.name + (ni < TREE_PHASES.length
       ? '  →  ' + (this.tree.isGrowing ? 'wächst...' : TREE_PHASES[ni]?.name || '')
       : '  ✓'));
+
+    // ── Ressourcen-Balken ──
     for (const key of Object.keys(this.resources.getAll())) {
       const res = this.resources.getAll()[key];
       if (!this.resTexts[key]) continue;
@@ -416,6 +467,15 @@ export class UISystem {
       this.resBars[key].width = Math.round(180 * (res.value / res.max));
     }
     this._updateMonthStrip();
+
+    // growthHint (Mitte-unten) – zeigt nur noch den Namen der nächsten Phase
+    if (nextP && !this.tree.isGrowing) {
+      this.growthHint.setText('↗ Nächste Phase: ' + nextP.name);
+    } else if (this.tree.isGrowing) {
+      this.growthHint.setText('🌱 Wächst...');
+    } else {
+      this.growthHint.setText('🌳 Urbaum erreicht');
+    }
   }
 
   updateSeasonBar() {
