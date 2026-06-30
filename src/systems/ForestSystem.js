@@ -1,87 +1,125 @@
-import { FOREST_TREE_TYPES } from '../config/seasons.js';
+import { FOREST_TREE_TYPES, FOREST_SLOTS_PER_PHASE, ROOT_DEPTH_LEVELS } from '../config/forest.js';
 
 /**
- * ForestSystem – verwaltet Begleitbäume im Wald.
- * Maximal 6 Slots (3 links, 3 rechts vom Hauptbaum).
- * Jeder Baum gibt passiv Ressourcen an den Hauptbaum.
+ * ForestSystem – verwaltet Waldbäume und Wurzel-Tiefenebenen.
+ *
+ * Waldbäume wachsen links/rechts vom Hauptbaum und geben
+ * passive Ressourcen-Boni an den Hauptbaum weiter.
+ *
+ * Wurzeln graben sich mit der Zeit tiefer (Humus → Grundwasser → Erdadern).
  */
 export class ForestSystem {
   constructor() {
-    // slots: Array von { typeId, level, x, side } oder null
-    this._slots = Array(6).fill(null);
-    this._types = FOREST_TREE_TYPES;
+    this.trees      = [];           // Gepflanzte Waldbäume: { type, slot, age, level }
+    this.rootLevels = new Set(['humus']); // Freigeschaltete Tiefenebenen
+    this._time      = 0;
   }
 
-  // ── Pflanzen / Leveln ───────────────────────────────────────────
+  // ── Wald-Bäume ──────────────────────────────────────────────────────────────
 
-  plant(slotIndex, typeId, resources, phaseIndex) {
-    if (slotIndex < 0 || slotIndex >= 6) return { ok: false, reason: 'Ungültiger Slot' };
-    if (this._slots[slotIndex]) return { ok: false, reason: 'Slot belegt' };
-    const type = this._types.find(t => t.id === typeId);
+  getAvailableTypes(phaseIndex) {
+    return FOREST_TREE_TYPES.filter(t => t.unlockPhase <= phaseIndex);
+  }
+
+  getSlots(phaseIndex) {
+    return FOREST_SLOTS_PER_PHASE[Math.min(phaseIndex, FOREST_SLOTS_PER_PHASE.length - 1)];
+  }
+
+  canPlant(typeId, phaseIndex, resources) {
+    if (this.trees.length >= this.getSlots(phaseIndex)) return { ok: false, reason: 'Kein freier Waldplatz' };
+    const type = FOREST_TREE_TYPES.find(t => t.id === typeId);
     if (!type) return { ok: false, reason: 'Unbekannter Baumtyp' };
-    if (phaseIndex < type.unlockPhase) return { ok: false, reason: type.name + ' erst ab Phase ' + (type.unlockPhase + 1) };
-    if (!resources.spend(type.plantCost)) return { ok: false, reason: 'Nicht genug Ressourcen' };
-    this._slots[slotIndex] = { typeId, level: 1 };
-    return { ok: true };
+    if (type.unlockPhase > phaseIndex) return { ok: false, reason: 'Hauptbaum zu klein' };
+    return { ok: true, type };
   }
 
-  levelUp(slotIndex, resources) {
-    const slot = this._slots[slotIndex];
-    if (!slot) return { ok: false, reason: 'Kein Baum in diesem Slot' };
-    const type = this._types.find(t => t.id === slot.typeId);
-    if (!type) return { ok: false, reason: 'Unbekannter Typ' };
-    if (slot.level >= type.maxLevel) return { ok: false, reason: 'Maximale Stufe erreicht' };
-    const cost = type.levelUpCost[slot.level]; // levelUpCost[0]=null, [1]=cost für->2, [2]=cost für->3
-    if (!cost) return { ok: false, reason: 'Kein Upgrade verfügbar' };
-    if (!resources.spend(cost)) return { ok: false, reason: 'Nicht genug Ressourcen' };
-    slot.level++;
-    return { ok: true, level: slot.level };
+  plant(typeId, phaseIndex, resources) {
+    const check = this.canPlant(typeId, phaseIndex, resources);
+    if (!check.ok) return check;
+    if (!resources.spend(check.type.cost)) return { ok: false, reason: 'Nicht genug Ressourcen' };
+    const slot = this._nextSlot();
+    this.trees.push({ id: typeId, type: check.type, slot, age: 0, level: 1, growthProgress: 0 });
+    return { ok: true, tree: this.trees[this.trees.length - 1] };
   }
 
-  remove(slotIndex) {
-    this._slots[slotIndex] = null;
+  _nextSlot() {
+    const used = new Set(this.trees.map(t => t.slot));
+    for (let i = 0; i < 12; i++) { if (!used.has(i)) return i; }
+    return this.trees.length;
   }
 
-  // ── Ressourcen-Beitrag ───────────────────────────────────────────
-
-  /** Gibt pro Sekunde-Tick zurück, wie viel jeder Baum dem Hauptbaum gibt */
-  getTotalBonus() {
-    const total = { light: 0, water: 0, nutrients: 0, symbiosis: 0 };
-    for (const slot of this._slots) {
-      if (!slot) continue;
-      const type = this._types.find(t => t.id === slot.typeId);
-      if (!type) continue;
-      const bonus = type.bonusPerLevel[slot.level - 1];
-      for (const key of Object.keys(total)) {
-        total[key] += (bonus[key] ?? 0);
+  /** Passiver Ressourcen-Bonus aller Waldbäume für den Hauptbaum (pro Tick) */
+  getForestBonus() {
+    const bonus = { light: 0, water: 0, nutrients: 0, symbiosis: 0, allRatesBonus: 0, winterMalusReduction: 0 };
+    for (const tree of this.trees) {
+      for (const [key, val] of Object.entries(tree.type.passiveBonus)) {
+        if (bonus[key] !== undefined) bonus[key] += val * tree.level;
       }
     }
-    // Synergie: Holunder verdoppelt alle Wald-Boni
-    const hasElder = this._slots.some(s => s?.typeId === 'elder_tree');
-    if (hasElder) {
-      const elderSlot = this._slots.find(s => s?.typeId === 'elder_tree');
-      const elderType = this._types.find(t => t.id === 'elder_tree');
-      const elderBonus = elderType.bonusPerLevel[elderSlot.level - 1];
-      // Holunder-Bonus selbst abziehen, dann doppelt
-      for (const key of Object.keys(total)) {
-        const without = total[key] - (elderBonus[key] ?? 0);
-        total[key] = without * 2 + (elderBonus[key] ?? 0);
-      }
-    }
-    return total;
+    return bonus;
   }
 
-  /** Anzahl gepflanzter Bäume */
-  getCount() { return this._slots.filter(Boolean).length; }
+  tick(delta) {
+    this._time += delta;
+    for (const tree of this.trees) {
+      tree.age += delta;
+      // Waldbäume wachsen langsam in Level 2 (nach 3 Minuten)
+      if (tree.level < 2 && tree.age > 180_000) tree.level = 2;
+    }
+  }
 
-  /** Anzahl verschiedener Typen */
-  getDistinctTypes() { return new Set(this._slots.filter(Boolean).map(s => s.typeId)).size; }
+  // ── Wurzel-Tiefenebenen ─────────────────────────────────────────────────────
 
-  getSlots() { return this._slots; }
-  getTypes() { return this._types; }
+  getAvailableDepths(phaseIndex) {
+    return ROOT_DEPTH_LEVELS.filter(d => d.unlockPhase <= phaseIndex);
+  }
 
-  // ── Serialisierung ─────────────────────────────────────────────────
+  isUnlocked(depthId) {
+    return this.rootLevels.has(depthId);
+  }
 
-  serialize() { return { slots: this._slots }; }
-  restore(data) { if (data?.slots) this._slots = data.slots.map(s => s ? { ...s } : null); }
+  unlockDepth(depthId, phaseIndex, resources) {
+    const level = ROOT_DEPTH_LEVELS.find(d => d.id === depthId);
+    if (!level) return { ok: false, reason: 'Unbekannte Schicht' };
+    if (this.rootLevels.has(depthId)) return { ok: false, reason: 'Bereits freigeschaltet' };
+    if (level.unlockPhase > phaseIndex) return { ok: false, reason: 'Hauptbaum zu klein' };
+    if (level.unlockCost && !resources.spend(level.unlockCost)) return { ok: false, reason: 'Nicht genug Ressourcen' };
+    this.rootLevels.add(depthId);
+    return { ok: true, level };
+  }
+
+  /** Passiver Bonus aller freigeschalteten Tiefenebenen */
+  getRootDepthBonus() {
+    const bonus = { water: 0, nutrients: 0, symbiosis: 0, allRatesBonus: 0, waterFloor: 0, winterMalusReduction: 0 };
+    for (const depthId of this.rootLevels) {
+      const level = ROOT_DEPTH_LEVELS.find(d => d.id === depthId);
+      if (!level) continue;
+      for (const [key, val] of Object.entries(level.passiveBonus)) {
+        if (bonus[key] !== undefined) bonus[key] += val;
+        else if (key === 'waterFloor') bonus.waterFloor = Math.max(bonus.waterFloor, val);
+      }
+    }
+    return bonus;
+  }
+
+  getUnlockedDepths() {
+    return [...this.rootLevels].map(id => ROOT_DEPTH_LEVELS.find(d => d.id === id)).filter(Boolean);
+  }
+
+  // ── Serialisierung ──────────────────────────────────────────────────────────
+
+  serialize() {
+    return {
+      trees: this.trees.map(t => ({ id: t.id, slot: t.slot, age: t.age, level: t.level })),
+      rootLevels: [...this.rootLevels],
+    };
+  }
+
+  restore(data) {
+    this.rootLevels = new Set(data.rootLevels || ['humus']);
+    this.trees = (data.trees || []).map(t => ({
+      ...t,
+      type: FOREST_TREE_TYPES.find(ft => ft.id === t.id),
+    })).filter(t => t.type);
+  }
 }
