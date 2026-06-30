@@ -69,26 +69,25 @@ export const SEASONS = [
   },
 ];
 
-// ── Baum-Phasen (5 Stufen) ────────────────────────────────────────────────
 export const TREE_PHASES = [
-  { id: 'seedling', name: 'Sämling',           trunkHeight:  60, trunkWidth:  8, levels: 2, branchSpread:  40,
+  { id: 'seedling', name: 'Sämling',            trunkHeight:  60, trunkWidth:  8, levels: 2, branchSpread:  40,
     growthCost: null, requiredSymbioses: 0, leafColor: 0x4a9a3a,
     description: 'Ein kleines Bäumchen. Voller Potenzial.', upgradeSlots: 1 },
-  { id: 'young',    name: 'Junger Baum',        trunkHeight: 120, trunkWidth: 14, levels: 3, branchSpread:  70,
+  { id: 'young',    name: 'Junger Baum',         trunkHeight: 120, trunkWidth: 14, levels: 3, branchSpread:  70,
     growthCost: { light: 60, water: 30, nutrients: 15 }, requiredSymbioses: 0, leafColor: 0x3a8a2a,
     description: 'Die Krone wird sichtbar. Erste Wurzeln greifen tief.', upgradeSlots: 2 },
-  { id: 'grown',    name: 'Ausgewachsener Baum', trunkHeight: 200, trunkWidth: 22, levels: 4, branchSpread: 110,
-    growthCost: { light: 150, water: 80, nutrients: 60 }, requiredSymbioses: 1, leafColor: 0x2a7a1a,
+  { id: 'grown',    name: 'Ausgewachsener Baum',  trunkHeight: 200, trunkWidth: 22, levels: 4, branchSpread: 110,
+    // FIX C: requiredSymbioses 1→0, damit man nicht im Henne-Ei steckt
+    growthCost: { light: 150, water: 80, nutrients: 60 }, requiredSymbioses: 0, leafColor: 0x2a7a1a,
     description: 'Breite Krone. Das Netzwerk beginnt.', upgradeSlots: 3 },
-  { id: 'elder',    name: 'Alter Baum',          trunkHeight: 260, trunkWidth: 28, levels: 5, branchSpread: 140,
-    growthCost: { light: 280, water: 160, nutrients: 120 }, requiredSymbioses: 2, leafColor: 0x1e6a14,
+  { id: 'elder',    name: 'Alter Baum',           trunkHeight: 260, trunkWidth: 28, levels: 5, branchSpread: 140,
+    growthCost: { light: 280, water: 160, nutrients: 120 }, requiredSymbioses: 1, leafColor: 0x1e6a14,
     description: 'Jahrzehnte alt. Symbionten siedeln sich an.', upgradeSlots: 4 },
-  { id: 'ancient',  name: 'Urbaum',              trunkHeight: 330, trunkWidth: 36, levels: 6, branchSpread: 170,
-    growthCost: { light: 500, water: 300, nutrients: 240 }, requiredSymbioses: 4, leafColor: 0x1a6010,
+  { id: 'ancient',  name: 'Urbaum',               trunkHeight: 330, trunkWidth: 36, levels: 6, branchSpread: 170,
+    growthCost: { light: 500, water: 300, nutrients: 240 }, requiredSymbioses: 3, leafColor: 0x1a6010,
     description: 'Ein Jahrtausende alter Riese. Das Ökosystem zentriert sich um dich.', upgradeSlots: 6 },
 ];
 
-// ── Waldbaum-Typen ────────────────────────────────────────────────────
 export const FOREST_TREE_TYPES = [
   {
     id: 'birch', name: 'Birke', emoji: '🪸',
@@ -199,7 +198,6 @@ export const FOREST_TREE_TYPES = [
   },
 ];
 
-// ── Wurzeltiefe-Ebenen ────────────────────────────────────────────────
 export const ROOT_DEPTH_LEVELS = [
   {
     id: 'humus', depth: 0, name: 'Humusschicht', emoji: '🌱',
@@ -259,7 +257,6 @@ export const ROOT_DEPTH_LEVELS = [
   },
 ];
 
-// ── Ressourcen ────────────────────────────────────────────────────────────
 export const RESOURCES = {
   light:     { name: 'Licht',      emoji: '☀️', color: '#f0e060', max: 500, baseRate: 1.8 },
   water:     { name: 'Wasser',     emoji: '💧', color: '#60a0f0', max: 500, baseRate: 1.2 },
@@ -267,7 +264,6 @@ export const RESOURCES = {
   symbiosis: { name: 'Symbiose',   emoji: '🪸', color: '#40d0a0', max: 500, baseRate: 0.3 },
 };
 
-// ── Mutationen ────────────────────────────────────────────────────────────
 export const MUTATIONS = [
   { id: 'deep_roots', name: 'Tiefe Wurzeln', emoji: '🌿', type: 'passive', requiredPhase: 0, exclusiveWith: [],
     lore: 'Unter der Erde träumt der Baum von Meeren, die längst verschwunden sind.',
@@ -325,7 +321,8 @@ export const MUTATIONS = [
       { level: 2, description: 'Dichtes Netz. Alle Raten +40%.', cost: { light: 160, water: 150, nutrients: 200 }, effect: { allRatesBonus: 0.4 }, visual: { showMycel: true, mycelDensity: 2 } },
       { level: 3, description: 'Weltennetz. Alle Raten +70%.', cost: { light: 320, water: 280, nutrients: 380 }, effect: { allRatesBonus: 0.7 }, visual: { showMycel: true, mycelDensity: 3, mycelGlow: true } },
     ] },
-  { id: 'root_network', name: 'Wurzelnetz', emoji: '🌐', type: 'symbiosis', requiredPhase: 2, exclusiveWith: [],
+  // FIX C: root_network auf Phase 1 gesetzt (war Phase 2) → 2. Symbiose sofort erreichbar
+  { id: 'root_network', name: 'Wurzelnetz', emoji: '🌐', type: 'symbiosis', requiredPhase: 1, exclusiveWith: [],
     lore: 'Ein Wald ist kein Wettbewerb – er ist ein Gespräch.',
     unlocked: false, active: false, level: 0,
     upgrades: [
