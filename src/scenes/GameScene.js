@@ -11,35 +11,38 @@ import { ForestRenderer }    from '../systems/ForestRenderer.js';
 import { CreatureSystem }    from '../systems/CreatureSystem.js';
 import { CreatureRenderer }  from '../systems/CreatureRenderer.js';
 import { CreatureUISystem }  from '../systems/CreatureUISystem.js';
+import { CrisisQuestSystem } from '../systems/CrisisQuestSystem.js';
+import { GeneticMemorySystem } from '../systems/GeneticMemorySystem.js';
+import { ITEM_DROPS }        from '../config/creatures.js';
 
 export class GameScene extends Phaser.Scene {
   constructor() { super({ key: 'GameScene' }); }
   init(data) { this._loadSave = data?.loadSave ?? false; }
 
   create() {
-    this.resources = new ResourceSystem();
-    this.seasons   = new SeasonSystem(this._onSeasonChange.bind(this));
-    this.tree      = new TreeSystem(this);
-    this.mutations = new MutationSystem();
-    this.codex     = new CodexSystem();
-    this.forest    = new ForestSystem();
-    this.creature  = new CreatureSystem();
+    this.resources  = new ResourceSystem();
+    this.seasons    = new SeasonSystem(this._onSeasonChange.bind(this));
+    this.tree       = new TreeSystem(this);
+    this.mutations  = new MutationSystem();
+    this.codex      = new CodexSystem();
+    this.forest     = new ForestSystem();
+    this.creature   = new CreatureSystem();
+    this.crisisQ    = new CrisisQuestSystem(this.creature, this.seasons);
+    this.genes      = new GeneticMemorySystem();
 
-    this.bgGfx     = this.add.graphics().setDepth(0);
-    this.groundGfx = this.add.graphics().setDepth(1);
-    this.starsGfx  = this.add.graphics().setDepth(2);
+    this.bgGfx      = this.add.graphics().setDepth(0);
+    this.groundGfx  = this.add.graphics().setDepth(1);
+    this.starsGfx   = this.add.graphics().setDepth(2);
     this._buildStars();
     this.particles    = this.add.graphics().setDepth(3);
     this.particleList = [];
 
     this.forestRenderer   = new ForestRenderer(this, this.forest);
     this.creatureRenderer = new CreatureRenderer(this, this.creature);
-
     if (this.tree.graphics) this.tree.graphics.setDepth(5);
-
     this._drawBackground(this.seasons.current);
 
-    // ─ Creature-Callbacks ───────────────────────────────────────────────
+    // ── Creature-Callbacks ──────────────────────────────────────────────────
     this.creature.onQuestComplete = (quest, reward, item) => {
       if (reward.resources) this.resources.add(reward.resources);
       const msg = quest.emoji + ' ' + quest.name + ' abgeschlossen! +' + quest.reward.xp + ' XP'
@@ -62,7 +65,6 @@ export class GameScene extends Phaser.Scene {
 
     this.creature.onTreeUnlock = () => this._unlockTree();
 
-    // Evolution (Stufe 1–2)
     this.creature.onEvolution = (stageIdx, stageDef) => {
       const a = this.creature.archetype;
       const msg = '🌱 ' + a.emoji + ' ' + stageDef.name + '! Das Tier hat sich entwickelt.';
@@ -70,27 +72,38 @@ export class GameScene extends Phaser.Scene {
         this.ui.addEventLog(msg, 'discovery');
         this.ui.showClickFeedback(this.scale.width * 0.38, this.scale.height * 0.65,
           stageDef.emoji + ' ' + stageDef.name + '!', '#80ffcc');
-      } else {
-        this._introLog(msg, 'discovery');
-      }
+      } else { this._introLog(msg, 'discovery'); }
       this._showEvolutionFlash(stageDef.colorTint, false);
       if (this.creatureUi) this.creatureUi.updateHUD();
     };
 
-    // Metamorphose (Stufe 3)
     this.creature.onMetamorphosis = (stageDef) => {
       this._showMetamorphosisScreen(stageDef);
-      // Mutation freischalten
       if (stageDef.unlocksMutation) {
         const mut = this.mutations.getAll().find(m => m.id === stageDef.unlocksMutation);
-        if (mut) {
-          mut.unlocked = true;
-          if (this.ui) this.ui.addEventLog('🔓 Mutation freigeschaltet: ' + mut.name, 'discovery');
-        }
+        if (mut) { mut.unlocked = true; if (this.ui) this.ui.addEventLog('🔓 Mutation freigeschaltet: ' + mut.name, 'discovery'); }
       }
     };
 
-    // ─ Season-Events ──────────────────────────────────────────────────
+    // ── Krisen-Quest-Callbacks ──────────────────────────────────────────────
+    this.crisisQ.onCrisisQuestAvailable = (questDef) => {
+      if (!this.creature.treeUnlocked) return;
+      if (this.ui) {
+        this.ui.addEventLog('🆘 ' + questDef.emoji + ' Notfall: ' + questDef.name + '! Tier kann helfen.', 'event');
+        this.ui.showClickFeedback(this.scale.width * 0.5, this.scale.height * 0.5,
+          '🆘 ' + questDef.name, '#ff8040');
+      }
+      if (this.creatureUi) this.creatureUi.offerCrisisQuest(questDef);
+    };
+
+    this.crisisQ.onCrisisQuestDone = (questDef, reward) => {
+      if (reward.resources) this.resources.add(reward.resources);
+      const msg = '✅ ' + questDef.emoji + ' ' + questDef.name + ' abgeschlossen! Krise abgemildert.';
+      if (this.ui) this.ui.addEventLog(msg, 'growth');
+      if (this.creatureUi) this.creatureUi.clearCrisisOffer();
+    };
+
+    // ── Season-Events ───────────────────────────────────────────────────────
     this.seasons.onEventStart = (ev) => {
       if (!this.ui) return;
       this.ui.showEventBanner(ev);
@@ -108,7 +121,7 @@ export class GameScene extends Phaser.Scene {
     };
     this.seasons.onEventEnd = () => { if (this.ui) this.ui.showEventBanner(null); };
 
-    // ─ Spielstart ────────────────────────────────────────────────────
+    // ── Spielstart ──────────────────────────────────────────────────────────
     if (this._loadSave) {
       const data = SaveSystem.load();
       if (data) {
@@ -117,12 +130,8 @@ export class GameScene extends Phaser.Scene {
         if (data.creature) {
           this.creature.restore(data.creature);
           this._startWithCreature(false);
-        } else {
-          this._showArchetypeChoice();
-        }
-      } else {
-        this._showArchetypeChoice();
-      }
+        } else { this._showArchetypeChoice(); }
+      } else { this._showArchetypeChoice(); }
     } else {
       this._showArchetypeChoice();
     }
@@ -132,7 +141,7 @@ export class GameScene extends Phaser.Scene {
       if (this.creature.treeUnlocked) this.tree.draw(this.seasons.current.id, this.mutations.getVisuals());
     });
 
-    // ─ Tick-Loop (1s) ──────────────────────────────────────────────
+    // ── Tick-Loop (1s) ──────────────────────────────────────────────────────
     this.time.addEvent({ delay: 1000, loop: true, callback: () => {
       if (!this.creature.treeUnlocked) return;
       const mutBonuses  = this.mutations.getBonuses();
@@ -140,8 +149,16 @@ export class GameScene extends Phaser.Scene {
       const forestBonus = this.forest.getForestBonus();
       const creatureBon = this.creature.isReady() ? this.creature.getTreeBonuses() : {};
       const eventEffect = this.seasons.getEventEffect();
+      // Krisenschaden reduzieren wenn Tier aktiv schützt
+      const crisisReduction = this.crisisQ.getDamageReduction();
+      const reducedEffect = crisisReduction > 0 ? {
+        light:     (eventEffect.light     || 0) * (1 - crisisReduction),
+        water:     (eventEffect.water     || 0) * (1 - crisisReduction),
+        nutrients: (eventEffect.nutrients || 0) * (1 - crisisReduction),
+      } : eventEffect;
+
       const bonuses = {
-        lightRateBonus:       (mutBonuses.lightRateBonus     ||0)+(forestBonus.light     ||0)+(creatureBon.lightRateBonus     ||0),
+        lightRateBonus:       (mutBonuses.lightRateBonus     ||0)+(forestBonus.light     ||0)+(creatureBon.lightRateBonus     ||0)+(this.mutations._geneticLightBonus||0),
         waterRateBonus:       (mutBonuses.waterRateBonus     ||0)+(forestBonus.water     ||0)+(rootBonuses.water||0)+(creatureBon.waterRateBonus||0),
         nutrientsRateBonus:   (mutBonuses.nutrientsRateBonus ||0)+(forestBonus.nutrients ||0)+(rootBonuses.nutrients||0)+(creatureBon.nutrientsRateBonus||0),
         allRatesBonus:        (mutBonuses.allRatesBonus      ||0)+(rootBonuses.allRatesBonus||0)+(forestBonus.allRatesBonus||0)+(creatureBon.allRatesBonus||0),
@@ -152,7 +169,7 @@ export class GameScene extends Phaser.Scene {
         resourceFloor: mutBonuses.resourceFloor||0,
         immortal:      mutBonuses.immortal||false,
       };
-      this.resources.tick(this.seasons.current.id, this.tree.phaseIndex, bonuses, eventEffect);
+      this.resources.tick(this.seasons.current.id, this.tree.phaseIndex, bonuses, reducedEffect);
       if (bonuses.waterFloor>0 && this.resources.get('water')<bonuses.waterFloor)
         this.resources.add({ water: bonuses.waterFloor - this.resources.get('water') });
       const symCount = this.mutations.getActiveSymbioses();
@@ -202,10 +219,26 @@ export class GameScene extends Phaser.Scene {
   }
 
   _showArchetypeChoice() {
+    // Genetisches Gedächtnis anzeigen falls vorhanden
+    const summary = this.genes.getSummary();
     this.creatureUi = new CreatureUISystem(this, this.creature, (archetypeId) => {
       this.creature.choose(archetypeId);
+      // Erbe anwenden
+      const heritage = this.genes.applyToNewRun(this.creature, this.resources, this.mutations);
+      if (heritage) {
+        // Vererbte Items in Inventar laden
+        for (const id of heritage.itemIds) {
+          const item = ITEM_DROPS.find(i => i.id === id);
+          if (item && !this.creature.inventory.find(i => i.id === id)) {
+            this.creature.inventory.push(item);
+          }
+        }
+        if (heritage.bonusDef && this.ui) {
+          this.ui.addEventLog('🧬 Erbe: ' + heritage.bonusDef.label + ' – ' + heritage.bonusDef.description, 'discovery');
+        }
+      }
       this._startWithCreature(true);
-    });
+    }, summary);
     this.creatureUi.showArchetypeChoice();
   }
 
@@ -215,9 +248,14 @@ export class GameScene extends Phaser.Scene {
     if (this.creature.treeUnlocked) this._buildTreeUI();
     if (isNew) {
       const a = this.creature.archetype;
+      const runs = this.genes.getRuns();
       this.time.delayedCall(400,  () => this._introLog('🌿 ' + a.emoji + ' Du erwachst. Der Wald ist still.', 'discovery'));
-      this.time.delayedCall(2200, () => this._introLog('👆 Tippe auf "Quest starten" um die Welt zu erkunden.', 'info'));
-      this.time.delayedCall(4500, () => this._introLog('🌱 Nach 3 Quests findest du etwas Besonderes...', 'info'));
+      if (runs > 0) {
+        this.time.delayedCall(1500, () => this._introLog('🧬 Du trägst die Erinnerung deiner Vorfahren.', 'discovery'));
+      } else {
+        this.time.delayedCall(2200, () => this._introLog('👆 Tippe auf "Quest starten" um die Welt zu erkunden.', 'info'));
+        this.time.delayedCall(4500, () => this._introLog('🌱 Nach 3 Quests findest du etwas Besonderes...', 'info'));
+      }
     } else {
       this.time.delayedCall(400, () => this._introLog('💾 Willkommen zurück, ' + this.creature.archetype.emoji + ' ' + this.creature.archetype.name + '.', 'discovery'));
     }
@@ -255,7 +293,7 @@ export class GameScene extends Phaser.Scene {
     this.seasons.onEventEnd = () => this.ui.showEventBanner(null);
   }
 
-  // ─ Evolutionsflash & Metamorphose-Screen ────────────────────────────
+  // ── Evolution & Metamorphose ────────────────────────────────────────────
   _showEvolutionFlash(color, isMeta) {
     const W = this.scale.width, H = this.scale.height;
     const flash = this.add.rectangle(W/2, H/2, W, H, color, isMeta ? 0.30 : 0.15).setDepth(20);
@@ -266,10 +304,8 @@ export class GameScene extends Phaser.Scene {
   _showMetamorphosisScreen(stageDef) {
     const W = this.scale.width, H = this.scale.height;
     this._showEvolutionFlash(stageDef.colorTint, true);
-
     const ov = this.add.rectangle(W/2, H/2, W, H, 0x000000, 0).setDepth(50);
     this.tweens.add({ targets: ov, alpha: 0.82, duration: 600 });
-
     const els = [ov];
     this.time.delayedCall(400, () => {
       els.push(
@@ -284,34 +320,77 @@ export class GameScene extends Phaser.Scene {
       const bonusLines = Object.entries(stageDef.treeBonus || {})
         .map(([k, v]) => '+' + Math.round(v*100) + '% ' + k.replace('RateBonus','').replace('allRates','Alle Raten'))
         .join('  ');
-      els.push(
-        this.add.text(W/2, H*0.64, bonusLines, {
-          fontFamily: 'sans-serif', fontSize: '12px', fill: '#80c080',
-        }).setOrigin(0.5).setDepth(51).setAlpha(0),
-      );
+      els.push(this.add.text(W/2, H*0.64, bonusLines, { fontFamily: 'sans-serif', fontSize: '12px', fill: '#80c080' }).setOrigin(0.5).setDepth(51).setAlpha(0));
       if (stageDef.unlocksMutation) {
         const mut = this.mutations.getAll().find(m => m.id === stageDef.unlocksMutation);
-        if (mut) els.push(
-          this.add.text(W/2, H*0.71, '🔓 ' + mut.name + ' freigeschaltet!', {
-            fontFamily: 'sans-serif', fontSize: '12px', fill: '#ffd060',
-          }).setOrigin(0.5).setDepth(51).setAlpha(0)
-        );
+        if (mut) els.push(this.add.text(W/2, H*0.71, '🔓 ' + mut.name + ' freigeschaltet!', { fontFamily: 'sans-serif', fontSize: '12px', fill: '#ffd060' }).setOrigin(0.5).setDepth(51).setAlpha(0));
       }
-      // Alle einblenden
-      for (const el of els.slice(1)) {
-        this.tweens.add({ targets: el, alpha: 1, duration: 500 });
-      }
-      // Weiter-Button
+      for (const el of els.slice(1)) this.tweens.add({ targets: el, alpha: 1, duration: 500 });
       this.time.delayedCall(800, () => {
-        const btn = this.add.rectangle(W/2, H*0.80, 200, 36, 0x1a2a1a, 0.95)
-          .setInteractive({ cursor: 'pointer' }).setDepth(51).setStrokeStyle(1, 0x60a040);
-        const bTxt = this.add.text(W/2, H*0.80, 'Weiter ▶', {
-          fontFamily: 'sans-serif', fontSize: '13px', fill: '#90d060',
-        }).setOrigin(0.5).setDepth(52);
+        const btn = this.add.rectangle(W/2, H*0.80, 200, 36, 0x1a2a1a, 0.95).setInteractive({ cursor: 'pointer' }).setDepth(51).setStrokeStyle(1, 0x60a040);
+        const bTxt = this.add.text(W/2, H*0.80, 'Weiter ▶', { fontFamily: 'sans-serif', fontSize: '13px', fill: '#90d060' }).setOrigin(0.5).setDepth(52);
         els.push(btn, bTxt);
-        btn.on('pointerdown', () => {
-          for (const el of els) { this.tweens.add({ targets: el, alpha: 0, duration: 400, onComplete: () => el.destroy() }); }
-        });
+        btn.on('pointerdown', () => { for (const el of els) this.tweens.add({ targets: el, alpha: 0, duration: 400, onComplete: () => el.destroy() }); });
+      });
+    });
+  }
+
+  // ── Game Over + Genetisches Gedächtnis ──────────────────────────────────
+  _checkGameOver() {
+    if (this.mutations.getBonuses().immortal) return;
+    const allEmpty = ['light','water','nutrients'].every(k => this.resources.get(k) <= 0);
+    if (allEmpty && !this._gameOverShown) {
+      this._gameOverShown = true;
+      // Genetisches Gedächtnis sichern
+      const { item, bonus } = this.genes.onGameOver(this.creature, this.tree.phaseIndex, this.seasons.year);
+      this._showGameOver(item, bonus);
+    }
+  }
+
+  _showGameOver(heritageItem, heritageBonus) {
+    const W = this.scale.width, H = this.scale.height;
+    const ov = this.add.rectangle(W/2, H/2, W, H, 0x000000, 0).setDepth(50);
+    this.tweens.add({ targets: ov, alpha: 0.80, duration: 1500 });
+    this.time.delayedCall(800, () => {
+      this.add.text(W/2, H*0.22, '🍂', { fontSize: '56px' }).setOrigin(0.5).setDepth(51);
+      this.add.text(W/2, H*0.34, 'Der Baum ist gestorben.', {
+        fontFamily: '"Cormorant Garamond",Georgia,serif', fontSize: '28px', fill: '#c87040', stroke: '#000', strokeThickness: 3,
+      }).setOrigin(0.5).setDepth(51);
+      this.add.text(W/2, H*0.43,
+        'Jahr ' + this.seasons.year + '  ·  ' + this.tree.phase.name + '  ·  Wald: ' + this.forest.trees.length,
+        { fontFamily: 'sans-serif', fontSize: '12px', fill: '#806050' }
+      ).setOrigin(0.5).setDepth(51);
+
+      // Tier flüchtet – Text
+      this.add.text(W/2, H*0.52, '🐾 Dein Tier flüchtet in die Wildnis...', {
+        fontFamily: '"Cormorant Garamond",Georgia,serif', fontSize: '15px', fill: '#a09070',
+      }).setOrigin(0.5).setDepth(51);
+
+      // Erbgut
+      let yOff = 0.60;
+      if (heritageItem) {
+        this.add.text(W/2, H*yOff, '🧬 Es trägt mit: ' + heritageItem.emoji + ' ' + heritageItem.name, {
+          fontFamily: 'sans-serif', fontSize: '13px', fill: '#d0c080',
+        }).setOrigin(0.5).setDepth(51);
+        yOff += 0.07;
+      }
+      if (heritageBonus) {
+        this.add.text(W/2, H*yOff, heritageBonus.label + ': ' + heritageBonus.description, {
+          fontFamily: 'sans-serif', fontSize: '12px', fill: '#80d0a0',
+        }).setOrigin(0.5).setDepth(51);
+        yOff += 0.07;
+      }
+
+      // Weiter-Button
+      const btn = this.add.rectangle(W/2, H*(yOff + 0.03), 240, 40, 0x1a1208, 0.95)
+        .setInteractive({ cursor: 'pointer' }).setDepth(51).setStrokeStyle(1, 0x6a3a1a);
+      this.add.text(W/2, H*(yOff + 0.03), '🌱 Neues Leben beginnen', {
+        fontFamily: 'sans-serif', fontSize: '13px', fill: '#d09060',
+      }).setOrigin(0.5).setDepth(52);
+      btn.on('pointerdown', () => {
+        SaveSystem.deleteSave();
+        this.scene.restart({ loadSave: false });
+        this._gameOverShown = false;
       });
     });
   }
@@ -336,43 +415,19 @@ export class GameScene extends Phaser.Scene {
     }
     this.creature.tick(delta);
     this.creatureRenderer.tick(delta);
+    this.crisisQ.tick(delta);
     this._updateParticles(delta);
     this._updateStars();
   }
 
-  _checkGameOver() {
+  _checkGameOverDirect() {
     if (this.mutations.getBonuses().immortal) return;
     const allEmpty = ['light','water','nutrients'].every(k => this.resources.get(k) <= 0);
     if (allEmpty && !this._gameOverShown) {
       this._gameOverShown = true;
-      this._showGameOver();
+      const { item, bonus } = this.genes.onGameOver(this.creature, this.tree.phaseIndex, this.seasons.year);
+      this._showGameOver(item, bonus);
     }
-  }
-
-  _showGameOver() {
-    const W = this.scale.width, H = this.scale.height;
-    const ov = this.add.rectangle(W/2, H/2, W, H, 0x000000, 0).setDepth(50);
-    this.tweens.add({ targets: ov, alpha: 0.75, duration: 1500 });
-    this.time.delayedCall(800, () => {
-      this.add.text(W/2, H*0.35, '🍂', { fontSize: '64px' }).setOrigin(0.5).setDepth(51);
-      this.add.text(W/2, H*0.50, 'Der Baum ist gestorben.', {
-        fontFamily: '"Cormorant Garamond",Georgia,serif', fontSize: '32px', fill: '#c87040', stroke: '#000', strokeThickness: 3,
-      }).setOrigin(0.5).setDepth(51);
-      this.add.text(W/2, H*0.60,
-        'Jahr ' + this.seasons.year + ' – ' + this.tree.phase.name + ' – Wald: ' + this.forest.trees.length + ' Bäume',
-        { fontFamily: 'sans-serif', fontSize: '14px', fill: '#806050' }
-      ).setOrigin(0.5).setDepth(51);
-      const btn = this.add.rectangle(W/2, H*0.72, 220, 42, 0x2a1a0a, 0.95)
-        .setInteractive({ cursor: 'pointer' }).setDepth(51).setStrokeStyle(1, 0x6a3a1a);
-      this.add.text(W/2, H*0.72, '🌱 Neu starten', {
-        fontFamily: 'sans-serif', fontSize: '15px', fill: '#d09060',
-      }).setOrigin(0.5).setDepth(52);
-      btn.on('pointerdown', () => {
-        SaveSystem.deleteSave();
-        this.scene.restart({ loadSave: false });
-        this._gameOverShown = false;
-      });
-    });
   }
 
   _drawBackground(season) {
@@ -452,6 +507,15 @@ export class GameScene extends Phaser.Scene {
       if (p.y > H) p.y = -10;
       this.particles.fillStyle(p.color, p.alpha);
       this.particles.fillCircle(p.x, p.y, p.size);
+    }
+  }
+
+  _onSeasonChange(prev, next) {
+    this._drawBackground(next);
+    if (this.creature.treeUnlocked) this.tree.draw(next.id, this.mutations.getVisuals());
+    if (this.ui) {
+      this.ui.showSeasonTransition(next);
+      this.ui.addEventLog(next.emoji + ' ' + next.name + ': ' + next.description, 'season');
     }
   }
 }

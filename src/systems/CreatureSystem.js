@@ -10,13 +10,15 @@ export class CreatureSystem {
     this.treeUnlocked    = false;
     this.seedQuestShown  = false;
     this.questsDone      = 0;
-    this.evolutionStage  = 0;   // 0..3, steigt alle 3 Level
+    this.evolutionStage  = 0;
     this.metamorphosed   = false;
+    // Genetisches Gedächtnis
+    this._memoryQuestHaste = 0;
 
     this.onQuestComplete  = null;
     this.onLevelUp        = null;
-    this.onEvolution      = null;  // (stage, stageDef) => {}
-    this.onMetamorphosis  = null;  // (stageDef) => {}
+    this.onEvolution      = null;
+    this.onMetamorphosis  = null;
     this.onTreeUnlock     = null;
     this.onItemDrop       = null;
   }
@@ -32,6 +34,7 @@ export class CreatureSystem {
     return getEvolutionStage(this.archetype, this.level);
   }
 
+  // ── Normale Quest ────────────────────────────────────────────────────────
   startQuest(questId) {
     if (this.questState) return { ok: false, reason: 'Quest läuft bereits.' };
     const quest = QUEST_TYPES.find(q => q.id === questId);
@@ -39,10 +42,19 @@ export class CreatureSystem {
     if (quest.unique && this.treeUnlocked) return { ok: false, reason: 'Bereits gepflanzt.' };
     let duration = quest.duration;
     const qBonus = (this.archetype?.questBonus?.[quest.type] || 0)
-                 + this._itemQuestBonus(quest.type);
+                 + this._itemQuestBonus(quest.type)
+                 + (quest.type !== 'plant_seed' ? this._memoryQuestHaste : 0);
+    this._memoryQuestHaste = 0; // einmalig
     duration = Math.max(5000, Math.round(duration * (1 - qBonus)));
     this.questState = { quest, startTime: Date.now(), duration };
     return { ok: true, duration };
+  }
+
+  // ── Notfall-Quest (von CrisisQuestSystem) ────────────────────────────────
+  _startCrisisQuest(questDef) {
+    if (this.questState) return { ok: false, reason: 'Quest läuft bereits.' };
+    this.questState = { quest: questDef, startTime: Date.now(), duration: questDef.duration };
+    return { ok: true, duration: questDef.duration };
   }
 
   tick(delta) {
@@ -71,13 +83,8 @@ export class CreatureSystem {
       droppedItem = this._rollItem();
       if (droppedItem) { this.inventory.push(droppedItem); this.onItemDrop?.(droppedItem); }
     }
-
     this._addXP(reward.xp || 0);
-
-    if (quest.id === 'plant_seed') {
-      this.treeUnlocked = true;
-      this.onTreeUnlock?.();
-    }
+    if (quest.id === 'plant_seed') { this.treeUnlocked = true; this.onTreeUnlock?.(); }
     this.onQuestComplete?.(quest, reward, droppedItem);
   }
 
@@ -93,7 +100,7 @@ export class CreatureSystem {
     });
   }
 
-  // ─ XP & Level & Evolution ───────────────────────────────────────────
+  // ── XP & Level & Evolution ───────────────────────────────────────────────
   _addXP(amount) {
     this.xp += amount;
     while (this.level < LEVEL_XP.length && this.xp >= LEVEL_XP[this.level]) {
@@ -106,7 +113,6 @@ export class CreatureSystem {
 
   _checkEvolution() {
     if (!this.archetype) return;
-    // Evolution-Stufen bei Level 4, 7, 10
     const stages = this.archetype.evolution;
     for (let i = stages.length - 1; i >= 0; i--) {
       if (this.level >= stages[i].level && this.evolutionStage < i) {
@@ -122,27 +128,21 @@ export class CreatureSystem {
     }
   }
 
-  getXPProgress() {
-    const needed = LEVEL_XP[this.level] ?? 999;
-    return Math.min(1, this.xp / needed);
-  }
-  getXPNeeded() { return LEVEL_XP[this.level] ?? 999; }
+  getXPProgress() { return Math.min(1, this.xp / (LEVEL_XP[this.level] ?? 999)); }
+  getXPNeeded()   { return LEVEL_XP[this.level] ?? 999; }
 
-  // ─ Boni ─────────────────────────────────────────────────────────────────
+  // ── Boni ─────────────────────────────────────────────────────────────────
   getTreeBonuses() {
     const stage = this.currentStage();
-    // Basisbonus: Archetyp + ggf. Metamorphose-Stufe
     const base = {
       ...(this.archetype?.treeBonus || {}),
       ...(stage?.metamorphosis ? (stage.treeBonus || {}) : {}),
     };
-    // Items
     for (const item of this.inventory) {
       for (const [k, v] of Object.entries(item.bonus?.treeBonus || {})) {
         base[k] = (base[k] || 0) + v;
       }
     }
-    // Level-Scaling +2% pro Level
     const scale = 1 + (this.level - 1) * 0.02;
     return Object.fromEntries(Object.entries(base).map(([k, v]) => [k, v * scale]));
   }
@@ -162,7 +162,7 @@ export class CreatureSystem {
     return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
   }
 
-  // ─ Save / Restore ─────────────────────────────────────────────────────
+  // ── Save / Restore ────────────────────────────────────────────────────────
   serialize() {
     return {
       archetypeId:    this.archetype?.id || null,
