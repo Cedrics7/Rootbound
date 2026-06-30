@@ -1,14 +1,16 @@
 import Phaser from 'phaser';
-import { BootScene } from './scenes/BootScene.js';
-import { GameScene } from './scenes/GameScene.js';
+import { BootScene }  from './scenes/BootScene.js';
+import { AuthScene }  from './scenes/AuthScene.js';
+import { GameScene }  from './scenes/GameScene.js';
 
 const config = {
   type: Phaser.AUTO,
-  width: window.innerWidth  > 1280 ? 1280 : window.innerWidth,
+  width:  window.innerWidth  > 1280 ? 1280 : window.innerWidth,
   height: window.innerHeight > 800  ? 800  : window.innerHeight,
   parent: 'game-container',
   backgroundColor: '#0d1b0f',
-  scene: [BootScene, GameScene],
+  // AuthScene startet zuerst, übergibt an GameScene sobald Slot gewählt
+  scene: [BootScene, AuthScene, GameScene],
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
