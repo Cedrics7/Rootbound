@@ -4,13 +4,17 @@
 export class SaveSystem {
   static SAVE_KEY = 'rootbound_save_v2';
 
+  static hasSave() {
+    try { return !!localStorage.getItem(SaveSystem.SAVE_KEY); } catch(e) { return false; }
+  }
+
   static save(resources, mutations, seasons, codex, tree, forest) {
     const data = {
       v: 2,
       resources: Object.fromEntries(
-        Object.entries(resources.getAll()).map(([k,r]) => [k, r.value])
+        Object.entries(resources.getAll()).map(([k, r]) => [k, r.value])
       ),
-      mutations: mutations.getAll().map(m => ({ id: m.id, level: m.level, active: m.active, unlocked: m.unlocked })),
+      mutations:         mutations.getAll().map(m => ({ id: m.id, level: m.level, active: m.active, unlocked: m.unlocked })),
       crisesEncountered: [...mutations.crisesEncountered],
       seasons:  { year: seasons.year, seasonIndex: seasons.seasonIndex, elapsed: seasons.elapsed },
       codex:    codex.getAll().map(e => ({ id: e.id, unlocked: e.unlocked })),
@@ -44,9 +48,9 @@ export class SaveSystem {
       for (const c of data.crisesEncountered) mutations.crisesEncountered.add(c);
     }
     if (data.seasons) {
-      seasons.year = data.seasons.year;
-      seasons.seasonIndex = data.seasons.seasonIndex;
-      seasons.elapsed = data.seasons.elapsed;
+      seasons.year         = data.seasons.year;
+      seasons.seasonIndex  = data.seasons.seasonIndex;
+      seasons.elapsed      = data.seasons.elapsed;
     }
     if (data.codex) {
       for (const saved of data.codex) {
