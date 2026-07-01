@@ -8,7 +8,8 @@ export class MutationSystem {
   constructor() {
     this.mutations = MUTATIONS.map(m => ({ ...m, upgrades: m.upgrades.map(u => ({ ...u })) }));
     this.crisesEncountered = new Set();
-    this._tempBonuses = {}; // zeitlich begrenzte Boni { key: { value, expiresAt } }
+    this._geneticLightBonus = 0;
+    this._tempBonuses = {};
   }
 
   onCrisis(eventId) {
@@ -24,7 +25,6 @@ export class MutationSystem {
     return this.mutations.filter(m => m.requiredPhase <= phaseIndex);
   }
 
-  /** Aktiviert oder upgradet eine Mutation um eine Stufe */
   activate(mutationId, resources) {
     const m = this.mutations.find(m => m.id === mutationId);
     if (!m) return { ok: false, reason: 'Unbekannte Mutation' };
@@ -34,7 +34,6 @@ export class MutationSystem {
 
     const upgrade = m.upgrades[targetLevel - 1];
 
-    // Exklusivitäts-Check nur beim ersten Aktivieren
     if (targetLevel === 1) {
       for (const exId of (m.exclusiveWith || [])) {
         const other = this.mutations.find(o => o.id === exId);
@@ -42,10 +41,8 @@ export class MutationSystem {
       }
     }
 
-    // Krisen-Mutation: kostenlos, aber muss erlebt worden sein
     if (m.type === 'crisis') {
       if (!m.unlocked) return { ok: false, reason: 'Benötigt Krise: ' + m.requiredCrisis };
-      // Ab Stufe 2: kostet Ressourcen
       if (targetLevel > 1) {
         if (!resources.spend(upgrade.cost)) return { ok: false, reason: 'Nicht genug Ressourcen' };
       }
@@ -59,7 +56,6 @@ export class MutationSystem {
     return { ok: true, level: targetLevel };
   }
 
-  /** Alle aktiven Boni aller Mutationen (akkumuliert nach höchster aktiver Stufe) */
   getBonuses() {
     const b = {
       lightRateBonus: 0, waterRateBonus: 0, nutrientsRateBonus: 0,
@@ -91,7 +87,6 @@ export class MutationSystem {
     return this.mutations.filter(m => m.active && m.type === 'symbiosis').length;
   }
 
-  /** Aktuelle visuelle Parameter der aktiven Mutationen zusammenführen */
   getVisuals() {
     const v = {
       leafColor: null, leafGlow: false, leafSizeBonus: 0,
@@ -124,4 +119,29 @@ export class MutationSystem {
   }
 
   getAll() { return this.mutations; }
+
+  serialize() {
+    return {
+      mutations: this.mutations.map(m => ({
+        id: m.id, level: m.level, active: m.active, unlocked: m.unlocked
+      })),
+      crisesEncountered: [...this.crisesEncountered],
+      geneticLightBonus: this._geneticLightBonus || 0,
+    };
+  }
+
+  restore(data) {
+    if (data.crisesEncountered) this.crisesEncountered = new Set(data.crisesEncountered);
+    if (data.geneticLightBonus) this._geneticLightBonus = data.geneticLightBonus;
+    if (data.mutations) {
+      for (const saved of data.mutations) {
+        const m = this.mutations.find(m => m.id === saved.id);
+        if (m) {
+          m.level    = saved.level    ?? 0;
+          m.active   = saved.active   ?? false;
+          m.unlocked = saved.unlocked ?? false;
+        }
+      }
+    }
+  }
 }
