@@ -55,4 +55,18 @@ export class ResourceSystem {
     }
     return true;
   }
+
+  serialize() {
+    const out = {};
+    for (const [key, res] of Object.entries(this._res)) {
+      out[key] = res.value;
+    }
+    return out;
+  }
+
+  restore(data) {
+    for (const [key, value] of Object.entries(data)) {
+      if (this._res[key]) this._res[key].value = value;
+    }
+  }
 }
