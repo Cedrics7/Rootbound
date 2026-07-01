@@ -5,37 +5,27 @@
 export class CodexSystem {
   constructor() {
     this.entries = [
-      // Pilze
       { id: 'myzel',      name: 'Myzel',               icon: '🍄', cat: 'Pilze',      cond: 'Bodenfeuchte ≥ 70%',           unlocked: false },
       { id: 'glowshroom', name: 'Geisterpilz',          icon: '🟣', cat: 'Pilze',      cond: 'Biolumineszenz aktiv',         unlocked: false },
       { id: 'fireswamp',  name: 'Feuerschwamm',         icon: '🔴', cat: 'Pilze',      cond: 'Dürre-Krise überstehen',       unlocked: false },
-      // Tiere
       { id: 'firefly',    name: 'Glühwürmchen',        icon: '🪲', cat: 'Tiere',      cond: 'Biolumineszenz + Sommer',      unlocked: false },
       { id: 'boar',       name: 'Wildschwein',          icon: '🐗', cat: 'Tiere',      cond: '5+ Jahre, Nährstoffe > 300',   unlocked: false },
       { id: 'moth',       name: 'Riesenmotte',          icon: '🦋', cat: 'Tiere',      cond: 'Sonnen-Krone + Nacht',         unlocked: false },
       { id: 'deer',       name: 'Hirsch',               icon: '🦌', cat: 'Tiere',      cond: 'Ausgewachsener Baum',          unlocked: false },
-      // Pflanzen
       { id: 'sundew',     name: 'Sonnentau',            icon: '🌿', cat: 'Pflanzen',   cond: 'Frühling + Wasser > 400',      unlocked: false },
       { id: 'titan_arum', name: 'Titanenwurz',          icon: '🌺', cat: 'Pflanzen',   cond: 'Jahr 10+, Symbiose > 200',     unlocked: false },
       { id: 'moonflower', name: 'Mondblume',            icon: '🌙', cat: 'Pflanzen',   cond: 'Winter überleben + Biolum',    unlocked: false },
-      // Parasiten
       { id: 'parasite',   name: 'Schmarotzerpflanze',   icon: '🦠', cat: 'Parasiten', cond: 'Krise überstehen',             unlocked: false },
-      // Legendarys
       { id: 'eternal',    name: 'Ewiger Schwamm',       icon: '♾️', cat: 'Legendarys', cond: 'Harvest + Blüte gleichzeitig', unlocked: false },
       { id: 'worldroot',  name: 'Weltenwurzel',         icon: '🌍', cat: 'Legendarys', cond: 'Alle 5 Mutationen aktiv',      unlocked: false },
     ];
     this._newUnlocks = [];
   }
 
-  /**
-   * Prüft Bedingungen und schaltet Einträge frei.
-   * Gibt true zurück wenn etwas Neues entdeckt wurde.
-   */
   check(resources, mutations, seasonId, year, crisisHistory) {
     let anyNew = false;
     const res    = (k) => resources.get(k);
     const hasMut = (id) => mutations.find(m => m.id === id && m.active);
-
     const checks = [
       ['myzel',      res('water') >= 350],
       ['glowshroom', hasMut('bioluminescence')],
@@ -51,7 +41,6 @@ export class CodexSystem {
       ['eternal',    crisisHistory.has('harvest') && crisisHistory.has('bloom')],
       ['worldroot',  mutations.filter(m => m.active).length >= 5],
     ];
-
     for (const [id, cond] of checks) {
       if (!cond) continue;
       const entry = this.entries.find(e => e.id === id);
@@ -64,14 +53,12 @@ export class CodexSystem {
     return anyNew;
   }
 
-  /** Leert und gibt neue Entdeckungen zurück (für Event-Log) */
   popNewUnlocks() {
     const q = [...this._newUnlocks];
     this._newUnlocks = [];
     return q;
   }
 
-  /** Wird direkt durch Krisen-Events getriggert */
   onCrisis(eventId) {
     const map = { drought: 'fireswamp', blizzard: 'moonflower', windstorm: 'parasite' };
     const id  = map[eventId];
@@ -97,8 +84,22 @@ export class CodexSystem {
     return cats;
   }
 
-  /** Anzahl entdeckt / gesamt (für UI) */
   getStats() {
     return { unlocked: this.getUnlocked().length, total: this.entries.length };
+  }
+
+  serialize() {
+    return {
+      unlocked: this.entries.filter(e => e.unlocked).map(e => e.id),
+    };
+  }
+
+  restore(data) {
+    if (data.unlocked) {
+      for (const id of data.unlocked) {
+        const entry = this.entries.find(e => e.id === id);
+        if (entry) entry.unlocked = true;
+      }
+    }
   }
 }
