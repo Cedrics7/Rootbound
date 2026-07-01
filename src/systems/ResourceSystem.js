@@ -1,6 +1,15 @@
 /**
  * ResourceSystem – verwaltet light, water, nutrients, symbiosis, essence.
  * 'essence' (Lebensessenz) wird durch hohe Baum-Phasen und Skills generiert.
+ *
+ * API:
+ *   get(key)        → number
+ *   getAll()        → { [key]: { value, max, emoji, name } }  (UISystem-kompatibel)
+ *   add(delta)      → void
+ *   spend(cost)     → void
+ *   tick(...)       → void
+ *   serialize()     → plain object
+ *   restore(data)   → void
  */
 export class ResourceSystem {
   constructor() {
@@ -18,11 +27,40 @@ export class ResourceSystem {
       symbiosis: 200,
       essence:   300,
     };
+    // Metadaten für UISystem-Kompatibilität (getAll)
+    this._meta = {
+      light:     { emoji: '☀️',  name: 'Licht'     },
+      water:     { emoji: '💧',  name: 'Wasser'    },
+      nutrients: { emoji: '🌱',  name: 'Nährstoffe'},
+      symbiosis: { emoji: '🔮',  name: 'Symbiose'  },
+      essence:   { emoji: '💎',  name: 'Essenz'    },
+    };
   }
 
-  get(key)  { return this._res[key] ?? 0; }
-  getMax(k) { return this._max[k] ?? 999; }
+  /** Einzelwert lesen */
+  get(key) { return this._res[key] ?? 0; }
 
+  /** Maximum lesen */
+  getMax(key) { return this._max[key] ?? 999; }
+
+  /**
+   * getAll() – UISystem-kompatibles Format.
+   * Gibt { [key]: { value, max, emoji, name } } zurück.
+   */
+  getAll() {
+    const out = {};
+    for (const key of Object.keys(this._res)) {
+      out[key] = {
+        value: this._res[key],
+        max:   this._max[key],
+        emoji: this._meta[key]?.emoji ?? '',
+        name:  this._meta[key]?.name  ?? key,
+      };
+    }
+    return out;
+  }
+
+  /** Ressourcen hinzufügen (positiv oder negativ) */
   add(delta) {
     for (const [k, v] of Object.entries(delta)) {
       if (!(k in this._res)) continue;
@@ -30,6 +68,7 @@ export class ResourceSystem {
     }
   }
 
+  /** Kosten abziehen */
   spend(cost) {
     for (const [k, v] of Object.entries(cost)) {
       if (!(k in this._res)) continue;
