@@ -5,6 +5,12 @@
 export class SaveSystem {
   static KEY = 'rootbound_save_v1';
 
+  static hasSave() {
+    try {
+      return localStorage.getItem(SaveSystem.KEY) !== null;
+    } catch(e) { return false; }
+  }
+
   static save(resources, mutations, seasons, codex, tree, forest, creature, skillSys = null) {
     const data = {
       resources:  resources.serialize(),
