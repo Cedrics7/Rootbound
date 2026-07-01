@@ -1,229 +1,216 @@
-import { SKILL_TREE, SKILL_BRANCHES } from '../config/skills.js';
+import { SKILL_BRANCHES } from '../config/skills.js';
 
 /**
- * SkillTreeUI – interaktives Skill-Baum-Panel
- *
- * Öffnen/Schließen via open() / close().
- * Zeigt alle Skills in 3 Zweig-Tabs, Verbindungslinien zwischen Abhängigkeiten,
- * Kosten und Voraussetzungen. Freischalten per Klick.
+ * SkillTreeUI – Neues Level-basiertes Design.
+ * Zeigt Creature-Level prominent, Skills sind nach Level-Gate gruppiert.
+ * Essenz-Ressource wird angezeigt.
  */
 export class SkillTreeUI {
-  constructor(scene, skillSystem, resourceSystem, creatureSystem) {
+  constructor(scene, skillSys, resources, creature) {
     this.scene    = scene;
-    this.skills   = skillSystem;
-    this.res      = resourceSystem;
-    this.creature = creatureSystem;
-    this._els     = [];
-    this._open    = false;
-    this._tab     = 'natur';
+    this.skillSys = skillSys;
+    this.resources = resources;
+    this.creature  = creature;
+    this.isOpen    = false;
+    this._els      = [];
+    this._panel    = null;
+    this._lastLevel = -1;
   }
 
-  get isOpen() { return this._open; }
+  toggle() {
+    this.isOpen ? this.close() : this.open();
+  }
 
   open() {
-    if (this._open) return;
-    this._open = true;
-    this._render();
+    this.isOpen = true;
+    this._build();
   }
 
   close() {
-    this._open = false;
-    this._clear();
+    this.isOpen = false;
+    for (const el of this._els) { try { el.destroy(); } catch(_) {} }
+    this._els   = [];
+    this._panel = null;
   }
 
-  toggle() { this._open ? this.close() : this.open(); }
+  // ─── Hauptpanel ──────────────────────────────────────────────────────────
 
-  // ── Render ────────────────────────────────────────────────────────────
-  _render() {
-    this._clear();
-    const s  = this.scene;
-    const W  = s.scale.width;
-    const H  = s.scale.height;
-    const PW = Math.min(520, W - 20);
-    const PH = Math.min(480, H - 20);
-    const PX = W / 2 - PW / 2;
-    const PY = H / 2 - PH / 2;
-    const push = el => { this._els.push(el); return el; };
+  _build() {
+    this.close();
+    this.isOpen = true;
 
-    // ── Hintergrund-Overlay
-    const ov = push(s.add.rectangle(W/2, H/2, W, H, 0x000000, 0.55).setDepth(30)
-      .setInteractive());
-    ov.on('pointerdown', () => this.close());
+    const W = this.scene.scale.width;
+    const H = this.scene.scale.height;
+    const lvl = this.creature?.level ?? 1;
+    this._lastLevel = lvl;
 
-    // ── Panel
-    push(s.add.rectangle(W/2, H/2, PW, PH, 0x080e08, 0.97)
-      .setDepth(31).setStrokeStyle(1.5, 0x3a6a2a));
+    // Hintergrund-Overlay
+    const overlay = this.scene.add.rectangle(W/2, H/2, W, H, 0x000000, 0.60)
+      .setDepth(30).setInteractive();
+    this._els.push(overlay);
 
-    // ── Titel + Schließen
-    push(s.add.text(PX + 12, PY + 10, '🌳 Skill-Baum – Wurzeln des Wissens', {
-      fontFamily: '"Cormorant Garamond",Georgia,serif', fontSize: '16px', fill: '#a0d878',
-    }).setDepth(32));
-    const closeBtn = push(s.add.text(PX + PW - 14, PY + 10, '×', {
-      fontFamily: 'sans-serif', fontSize: '18px', fill: '#607850',
-    }).setOrigin(1, 0).setDepth(32).setInteractive({ cursor: 'pointer' }));
-    closeBtn.on('pointerover', () => closeBtn.setStyle({ fill: '#ff8060' }));
-    closeBtn.on('pointerout',  () => closeBtn.setStyle({ fill: '#607850' }));
+    // Panel
+    const pw = Math.min(W - 20, 520);
+    const ph = Math.min(H - 30, 580);
+    const px = W/2;
+    const py = H/2;
+    const panel = this.scene.add.rectangle(px, py, pw, ph, 0x0a120a, 0.97)
+      .setDepth(31).setStrokeStyle(1.5, 0x3a6a28);
+    this._els.push(panel);
+    this._panel = panel;
+
+    const left = px - pw/2;
+    const top  = py - ph/2;
+
+    // Titel + Schließen
+    const title = this.scene.add.text(px, top + 18, '🌳 Skill-Baum', {
+      fontFamily: '"Segoe UI", sans-serif', fontSize: '15px', fill: '#a0d878',
+    }).setOrigin(0.5, 0).setDepth(32);
+    this._els.push(title);
+
+    const closeBtn = this.scene.add.text(left + pw - 14, top + 12, '✕', {
+      fontFamily: 'sans-serif', fontSize: '14px', fill: '#80a060',
+    }).setOrigin(1, 0).setDepth(32).setInteractive({ cursor: 'pointer' });
     closeBtn.on('pointerdown', () => this.close());
+    closeBtn.on('pointerover', () => closeBtn.setStyle({ fill: '#ffffff' }));
+    closeBtn.on('pointerout',  () => closeBtn.setStyle({ fill: '#80a060' }));
+    this._els.push(closeBtn);
 
-    // ── Branch-Tabs
-    const tabs = Object.entries(SKILL_BRANCHES);
-    const tabW = (PW - 24) / tabs.length;
-    tabs.forEach(([branch, meta], i) => {
-      const tx   = PX + 12 + i * tabW + tabW / 2;
-      const ty   = PY + 34;
-      const active = branch === this._tab;
-      const tabBg = push(s.add.rectangle(tx, ty, tabW - 4, 22,
-        active ? 0x1a3a1a : 0x0a1a0a, active ? 0.95 : 0.75)
-        .setDepth(32).setStrokeStyle(1, active ? 0x60a030 : 0x2a3a1a)
-        .setInteractive({ cursor: 'pointer' }));
-      push(s.add.text(tx, ty, meta.label, {
-        fontFamily: 'sans-serif', fontSize: '11px', fill: active ? meta.color : '#506040',
-      }).setOrigin(0.5).setDepth(33));
-      if (!active) {
-        tabBg.on('pointerdown', () => { this._tab = branch; this._render(); });
-        tabBg.on('pointerover', () => tabBg.setFillStyle(0x142a14, 0.9));
-        tabBg.on('pointerout',  () => tabBg.setFillStyle(0x0a1a0a, 0.75));
-      }
-    });
+    // Level-Banner
+    const expNext = this.creature?.xpForNextLevel?.() ?? '?';
+    const expCur  = this.creature?.xp ?? 0;
+    const lvlBg   = this.scene.add.rectangle(px, top + 50, pw - 20, 32, 0x1a2e14, 1)
+      .setDepth(32).setStrokeStyle(1, 0x4a8a30);
+    this._els.push(lvlBg);
+    const lvlTxt  = this.scene.add.text(px, top + 50,
+      `⭐ Level ${lvl}  ·  XP: ${Math.floor(expCur)} / ${expNext}  ·  💎 Essenz: ${Math.floor(this.resources.get('essence'))}`,
+      { fontFamily: 'sans-serif', fontSize: '11px', fill: '#d0ff80' }
+    ).setOrigin(0.5).setDepth(33);
+    this._els.push(lvlTxt);
 
-    // ── Skills des aktiven Tabs
-    const skills = SKILL_TREE.filter(sk =>
-      sk.branch === this._tab ||
-      // Cross-Skills im Verbund-Tab
-      (this._tab === 'cross' && sk.branch === 'cross')
-    );
+    // XP-Balken
+    const barW  = pw - 40;
+    const xpPct = typeof expNext === 'number' && expNext > 0 ? Math.min(1, expCur / expNext) : 0;
+    const barBg = this.scene.add.rectangle(left + 20 + barW/2, top + 68, barW, 5, 0x1a2a12, 1).setDepth(32);
+    const barFg = this.scene.add.rectangle(left + 20 + barW * xpPct / 2, top + 68, barW * xpPct, 5, 0x60c030, 1).setDepth(33).setOrigin(0, 0.5);
+    this._els.push(barBg, barFg);
 
-    // Grid: col 0-8 übergreifend, Tab-spezifische Cols
-    const colMap = { natur: [0,1,2], wild: [3,4,5], harmonie: [6,7,8], cross: [0,1,2,3,4,5,6,7,8] };
-    const cols   = colMap[this._tab] ?? [0,1,2];
-    const ROWS   = 5;
-    const cellW  = (PW - 24) / cols.length;
-    const cellH  = (PH - 80) / ROWS;
-    const gridX  = PX + 12;
-    const gridY  = PY + 62;
+    // Ressourcen-Zeile
+    const resY = top + 83;
+    const resTxt = this.scene.add.text(left + 10, resY,
+      `☀️ ${Math.floor(this.resources.get('light'))}  💧 ${Math.floor(this.resources.get('water'))}  🌱 ${Math.floor(this.resources.get('nutrients'))}  🔮 ${Math.floor(this.resources.get('symbiosis'))}`,
+      { fontFamily: 'sans-serif', fontSize: '10px', fill: '#90b878' }
+    ).setDepth(32);
+    this._els.push(resTxt);
 
-    // Verbindungslinien zuerst (Depth 31)
-    const gfx = push(s.add.graphics().setDepth(31));
-    skills.forEach(skill => {
-      skill.requires.forEach(reqId => {
-        const req = SKILL_TREE.find(r => r.id === reqId);
-        if (!req) return;
-        const sCol = cols.indexOf(skill.pos.col);
-        const rCol = cols.indexOf(req.pos.col);
-        if (sCol < 0 || rCol < 0) return; // nicht im Tab sichtbar
-        const x1 = gridX + rCol   * cellW + cellW / 2;
-        const y1 = gridY + req.pos.row   * cellH + cellH / 2;
-        const x2 = gridX + sCol   * cellW + cellW / 2;
-        const y2 = gridY + skill.pos.row * cellH + cellH / 2;
-        const bothUnlocked = this.skills.isUnlocked(skill.id) && this.skills.isUnlocked(reqId);
-        const lineColor = bothUnlocked ? 0x60a030 : 0x2a3a2a;
-        gfx.lineStyle(1.5, lineColor, bothUnlocked ? 0.8 : 0.4);
-        gfx.beginPath();
-        gfx.moveTo(x1, y1);
-        gfx.lineTo(x2, y2);
-        gfx.strokePath();
-      });
-    });
+    // Trennlinie
+    const div = this.scene.add.rectangle(px, top + 95, pw - 20, 1, 0x3a5a28, 0.8).setDepth(32);
+    this._els.push(div);
 
-    // Skill-Karten
-    skills.forEach(skill => {
-      const colIdx = cols.indexOf(skill.pos.col);
-      if (colIdx < 0) return;
-      const cx = gridX + colIdx * cellW + cellW / 2;
-      const cy = gridY + skill.pos.row * cellH + cellH / 2;
-      const cW = Math.min(cellW - 8, 110);
-      const cH = Math.min(cellH - 8, 72);
+    // Skill-Liste (scrollbar via Container-Clip wäre ideal, hier einfache Liste)
+    const skills   = this.skillSys.getSkillsWithStatus(this.resources, lvl);
+    const branches = ['natur', 'wild', 'harmonie', 'cross'];
+    let   curY     = top + 106;
+    const contentH = ph - 116;
 
-      const unlocked = this.skills.isUnlocked(skill.id);
-      const check    = this.skills.canUnlock(skill.id, this.res, this.creature.level);
-      const canBuy   = check.ok;
+    for (const branchId of branches) {
+      const bMeta   = SKILL_BRANCHES[branchId];
+      const bSkills = skills.filter(s => s.branch === branchId);
+      if (!bSkills.length) continue;
 
-      const cardColor = unlocked ? 0x1a3a0a :
-                        canBuy   ? 0x1a1a0a : 0x0a0e0a;
-      const strokeCol = unlocked ? 0x60d030 :
-                        canBuy   ? 0x807020 : 0x2a3a2a;
+      // Branch-Header
+      const bhdr = this.scene.add.text(left + 14, curY, bMeta.label, {
+        fontFamily: 'sans-serif', fontSize: '10px', fill: bMeta.color, fontStyle: 'bold',
+      }).setDepth(32);
+      this._els.push(bhdr);
+      curY += 14;
 
-      const card = push(s.add.rectangle(cx, cy, cW, cH, cardColor, 0.95)
-        .setDepth(32).setStrokeStyle(1.5, strokeCol)
-        .setInteractive({ cursor: unlocked ? 'default' : 'pointer' }));
+      for (const skill of bSkills) {
+        if (curY > top + ph - 18) break; // overflow guard
+        const rowH = 36;
+        const unlocked = skill.unlocked;
+        const canDo    = skill.canUnlock && !unlocked;
+        const lvlGated = !skill.lvlOk && !unlocked;
 
-      push(s.add.text(cx, cy - cH/2 + 12, skill.emoji + ' ' + skill.name, {
-        fontFamily: '"Cormorant Garamond",Georgia,serif',
-        fontSize: '11px',
-        fill: unlocked ? '#a0ff60' : canBuy ? '#d0c060' : '#4a6040',
-      }).setOrigin(0.5).setDepth(33));
+        // Zeilen-Hintergrund
+        const rowAlpha = unlocked ? 0.35 : canDo ? 0.22 : 0.10;
+        const rowColor = unlocked ? 0x1a3a14 : canDo ? 0x122212 : 0x0a0e0a;
+        const rowBg = this.scene.add.rectangle(px, curY + rowH/2, pw - 20, rowH - 2, rowColor, rowAlpha)
+          .setDepth(31).setStrokeStyle(1, unlocked ? 0x60c040 : canDo ? 0x304820 : 0x1a2214);
+        this._els.push(rowBg);
 
-      // Kurzbeschreibung (erste 40 Zeichen)
-      push(s.add.text(cx, cy - 4, skill.description.substring(0, 38) + (skill.description.length > 38 ? '…' : ''), {
-        fontFamily: 'sans-serif', fontSize: '8px', fill: '#607850',
-        wordWrap: { width: cW - 8 }, align: 'center',
-      }).setOrigin(0.5).setDepth(33));
+        // Emoji + Name
+        const nameCol = unlocked ? '#a0ff60' : canDo ? '#d0e890' : lvlGated ? '#705840' : '#506040';
+        const nameTxt = this.scene.add.text(left + 18, curY + 6,
+          `${skill.emoji} ${skill.name}`,
+          { fontFamily: 'sans-serif', fontSize: '11px', fill: nameCol, fontStyle: unlocked ? 'bold' : 'normal' }
+        ).setDepth(32);
+        this._els.push(nameTxt);
 
-      if (unlocked) {
-        push(s.add.text(cx, cy + cH/2 - 10, '✓ Freigeschaltet', {
-          fontFamily: 'sans-serif', fontSize: '8px', fill: '#60a030',
-        }).setOrigin(0.5).setDepth(33));
-      } else {
-        // Kostenzeile
-        const costStr = Object.entries(skill.cost)
-          .map(([k, v]) => k === 'xp' ? 'Lv' + this.skills._xpTierMinLevel(skill.tier) :
-            v + ' ' + { light: '☀️', water: '💧', nutrients: '🌱', symbiosis: '🪼' }[k])
-          .join(' ');
-        push(s.add.text(cx, cy + cH/2 - 10, costStr, {
-          fontFamily: 'sans-serif', fontSize: '8px',
-          fill: canBuy ? '#a09030' : '#503820',
-        }).setOrigin(0.5).setDepth(33));
+        // Level-Badge
+        const lvlColor = skill.lvlOk || unlocked ? '#70c050' : '#c08040';
+        const lvlBadge = this.scene.add.text(left + pw - 26, curY + 4,
+          `Lv.${skill.levelRequired}`,
+          { fontFamily: 'sans-serif', fontSize: '9px', fill: lvlColor }
+        ).setOrigin(1, 0).setDepth(32);
+        this._els.push(lvlBadge);
 
-        if (!canBuy && !unlocked) {
-          push(s.add.text(cx, cy + 10, check.reason, {
-            fontFamily: 'sans-serif', fontSize: '7px', fill: '#604030',
-            wordWrap: { width: cW - 8 }, align: 'center',
-          }).setOrigin(0.5).setDepth(33));
-        }
-      }
+        // Beschreibung oder Sperr-Grund
+        const descCol  = unlocked ? '#70a050' : '#506040';
+        const descText = unlocked
+          ? '✓ ' + skill.description
+          : (canDo ? skill.description : (skill.reason ?? skill.description));
+        const desc = this.scene.add.text(left + 18, curY + 19, descText, {
+          fontFamily: 'sans-serif', fontSize: '9px', fill: descCol,
+          wordWrap: { width: pw - 100 },
+        }).setDepth(32);
+        this._els.push(desc);
 
-      if (!unlocked) {
-        card.on('pointerover', () => canBuy && card.setStrokeStyle(1.5, 0xd0c030));
-        card.on('pointerout',  () => card.setStrokeStyle(1.5, strokeCol));
-        card.on('pointerdown', () => {
-          const result = this.skills.unlock(skill.id, this.res, this.creature.level);
-          if (result.ok) {
-            // Feedback
-            const fb = s.add.text(cx, cy - 20, '✨ ' + skill.name + ' freigeschaltet!', {
-              fontFamily: 'sans-serif', fontSize: '11px', fill: '#a0ff60',
-              stroke: '#000', strokeThickness: 2,
-            }).setOrigin(0.5).setDepth(40);
-            s.tweens.add({ targets: fb, y: cy - 50, alpha: 0, duration: 1200, onComplete: () => fb.destroy() });
-            this._render(); // Panel neu rendern
-          } else {
-            const fb = s.add.text(cx, cy, '⚠ ' + result.reason, {
-              fontFamily: 'sans-serif', fontSize: '10px', fill: '#ff8040',
-              stroke: '#000', strokeThickness: 2,
-            }).setOrigin(0.5).setDepth(40);
-            s.tweens.add({ targets: fb, y: cy - 30, alpha: 0, duration: 1500, onComplete: () => fb.destroy() });
+        // Kosten-Badge (rechts)
+        if (!unlocked) {
+          const costParts = [];
+          const costIcons = { light: '☀️', water: '💧', nutrients: '🌱', symbiosis: '🔮', essence: '💎' };
+          for (const [k, v] of Object.entries(skill.cost)) {
+            const has  = (this.resources.get(k) ?? 0) >= v;
+            costParts.push({ icon: costIcons[k] || k, val: v, has });
           }
-        });
+          let cx2 = left + pw - 26;
+          for (let ci = costParts.length - 1; ci >= 0; ci--) {
+            const cp  = costParts[ci];
+            const col = cp.has ? '#80c060' : '#c04040';
+            const ct  = this.scene.add.text(cx2, curY + 17, `${cp.icon}${cp.val}`, {
+              fontFamily: 'sans-serif', fontSize: '9px', fill: col,
+            }).setOrigin(1, 0).setDepth(32);
+            this._els.push(ct);
+            cx2 -= ct.width + 4;
+          }
+        }
+
+        // Klick-Handler (nur wenn entsperrbar)
+        if (canDo) {
+          rowBg.setInteractive({ cursor: 'pointer' });
+          rowBg.on('pointerover', () => rowBg.setStrokeStyle(1.5, 0x80d060));
+          rowBg.on('pointerout',  () => rowBg.setStrokeStyle(1, 0x304820));
+          rowBg.on('pointerdown', () => {
+            const res = this.skillSys.unlock(skill.id, this.resources, lvl);
+            if (res.ok) {
+              // Kurz-Feedback
+              const fb = this.scene.add.text(px, py - 20,
+                `✨ ${skill.emoji} ${skill.name} freigeschaltet!`,
+                { fontFamily: 'sans-serif', fontSize: '12px', fill: '#c0ff80',
+                  stroke: '#000', strokeThickness: 2 }
+              ).setOrigin(0.5).setDepth(40);
+              this.scene.tweens.add({ targets: fb, y: py - 50, alpha: 0, duration: 1500,
+                onComplete: () => fb.destroy() });
+              // Panel neu aufbauen
+              this._build();
+            }
+          });
+        }
+
+        curY += rowH;
       }
-    });
-
-    // ── Freigeschaltete Boni Zusammenfassung (unten)
-    const bonuses = this.skills.getBonuses();
-    const activeBonusLines = [];
-    if (bonuses.allRatesBonus > 0)         activeBonusLines.push('+' + Math.round(bonuses.allRatesBonus*100) + '% Alle');
-    if (bonuses.lightRateBonus > 0)        activeBonusLines.push('+' + Math.round(bonuses.lightRateBonus*100) + '% Licht');
-    if (bonuses.waterRateBonus > 0)        activeBonusLines.push('+' + Math.round(bonuses.waterRateBonus*100) + '% Wasser');
-    if (bonuses.nutrientsRateBonus > 0)    activeBonusLines.push('+' + Math.round(bonuses.nutrientsRateBonus*100) + '% Nähr.');
-    if (bonuses.questSpeedBonus > 0)       activeBonusLines.push('+' + Math.round(bonuses.questSpeedBonus*100) + '% Quest');
-    if (bonuses.eventDamageReduction > 0)  activeBonusLines.push('-' + Math.round(bonuses.eventDamageReduction*100) + '% Krisen');
-    if (bonuses.symbiosisPassive > 0)      activeBonusLines.push('+' + bonuses.symbiosisPassive.toFixed(1) + ' Sym/s');
-    const summary = activeBonusLines.length ? activeBonusLines.join('  ·  ') : 'Noch keine Boni aktiv.';
-    push(s.add.text(W/2, PY + PH - 12, summary, {
-      fontFamily: 'sans-serif', fontSize: '9px', fill: '#60a040',
-    }).setOrigin(0.5).setDepth(32));
-  }
-
-  _clear() {
-    for (const el of this._els) { try { el.destroy(); } catch(e) {} }
-    this._els = [];
+      curY += 6;
+    }
   }
 }
